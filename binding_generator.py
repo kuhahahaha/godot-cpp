@@ -493,6 +493,16 @@ def generate_gdextension_interface_loader_source(data):
             if name == "print_error":
                 # We manually load "print_error" early, so don't load it again here.
                 continue
+            if name.startswith("device_exit_") and name not in {
+                "device_exit_bootstrap_library_v1",
+                "device_exit_retain_library_view_v1",
+                "device_exit_copy_library_snapshot_v1",
+                "device_exit_release_library_view_v1",
+                "device_exit_clone_library_view_v1",
+            }:
+                # Guarded-only entries are resolved atomically per InitData.
+                # Legacy loader lookup deliberately does not expose them.
+                continue
             fn = gdextension_interface_type_name(name)
 
             if "deprecated" in func:
