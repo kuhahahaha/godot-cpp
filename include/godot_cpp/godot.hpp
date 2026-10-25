@@ -87,6 +87,7 @@ public:
 		SceneReadyCallback frozen_scene_ready_callback = nullptr;
 		bool main_rd_qualification_required = false;
 		bool frozen_main_rd_qualification_required = false;
+		uint64_t frozen_entry_classes = 0;
 		GDExtensionInitializationLevel minimum_initialization_level = GDEXTENSION_INITIALIZATION_CORE;
 		Callback init_callback = nullptr;
 		Callback terminate_callback = nullptr;

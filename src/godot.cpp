@@ -125,6 +125,7 @@ bool frozen_configuration(const GDExtensionBinding::InitData &data) {
         data.terminate_callback != data.frozen_terminator ||
         data.scene_ready_callback != data.frozen_scene_ready_callback ||
         data.main_rd_qualification_required != data.frozen_main_rd_qualification_required ||
+        data.guard_configuration.entry_classes != data.frozen_entry_classes ||
         data.minimum_initialization_level != data.guard_configuration.expected_initialization.minimum_initialization_level) return false;
 #if GODOT_VERSION_MINOR >= 5
     if (data.main_loop_callbacks.startup_func != data.frozen_main_loop_callbacks.startup_func ||
@@ -221,7 +222,6 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
     if (guarded && (legacy_used || !p_init_data->guard_configured)) return false;
     DeviceExitApi candidate_api;
     if (guarded && !candidate_api.load(p_get_proc_address, scene_ready, p_init_data->main_rd_qualification_required)) return false;
-    binding_owner = std::this_thread::get_id();
     auto enroll = [&]() {
         r_initialization->initialize = initialize_level;
         r_initialization->deinitialize = deinitialize_level;
@@ -233,6 +233,7 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
             configuration.abi = {1, sizeof(configuration), 0};
             configuration.binding_protocol = 1;
             if (scene_ready) configuration.entry_classes |= GDEXTENSION_DEVICE_EXIT_ENTRY_SCENE_READY_V1;
+            p_init_data->frozen_entry_classes = configuration.entry_classes;
             configuration.expected_initialization = *r_initialization;
             configuration.user_initializer = guarded_initialize_user;
             configuration.user_terminator = configuration.user_cleanup_bitmap ? guarded_terminate_user : nullptr;
@@ -247,6 +248,7 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
             p_init_data->exit_api = candidate_api;
             guarded_claimant = p_init_data;
         }
+        binding_owner = std::this_thread::get_id();
         p_init_data->state = InitData::State::ENROLLED;
         reservation.committed = true;
         return true;
