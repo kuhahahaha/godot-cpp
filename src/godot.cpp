@@ -116,6 +116,7 @@ GDExtensionBinding::InitData *GDExtensionBinding::pending_init = nullptr;
 GDExtensionBinding::InitData *GDExtensionBinding::guarded_claimant = nullptr;
 bool GDExtensionBinding::legacy_used = false;
 std::thread::id GDExtensionBinding::binding_owner;
+thread_local GDExtensionBinding::InitData *GDExtensionBinding::active_guarded_user = nullptr;
 namespace {
 constexpr GDExtensionDeviceExitAbi exit_abi{1, sizeof(GDExtensionDeviceExitAbi), 0};
 bool frozen_configuration(const GDExtensionBinding::InitData &data) {
@@ -134,12 +135,18 @@ bool frozen_configuration(const GDExtensionBinding::InitData &data) {
 void GDExtensionBinding::guarded_initialize_user(void *userdata, GDExtensionInitializationLevel level) {
     auto *data = static_cast<InitData *>(userdata);
     if (!data || data != guarded_claimant || !frozen_configuration(*data)) std::abort();
+    if (active_guarded_user) std::abort();
+    active_guarded_user = data;
     data->frozen_initializer(static_cast<ModuleInitializationLevel>(level));
+    active_guarded_user = nullptr;
 }
 void GDExtensionBinding::guarded_terminate_user(void *userdata, GDExtensionInitializationLevel level) {
     auto *data = static_cast<InitData *>(userdata);
     if (!data || data != guarded_claimant || !frozen_configuration(*data)) std::abort();
+    if (active_guarded_user) std::abort();
+    active_guarded_user = data;
     if (data->frozen_terminator) data->frozen_terminator(static_cast<ModuleInitializationLevel>(level));
+    active_guarded_user = nullptr;
 }
 
 GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization) {

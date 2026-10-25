@@ -113,6 +113,7 @@ public:
 	static InitData *guarded_claimant;
 	static bool legacy_used;
 	static std::thread::id binding_owner;
+	static thread_local InitData *active_guarded_user;
 	static void guarded_initialize_user(void *, GDExtensionInitializationLevel);
 	static void guarded_terminate_user(void *, GDExtensionInitializationLevel);
 	static GDExtensionBool init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization);
