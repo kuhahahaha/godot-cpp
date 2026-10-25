@@ -29,13 +29,16 @@
 /**************************************************************************/
 
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/engine.hpp>
 
 #include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/templates/vector.hpp>
 
 #include <godot_cpp/core/memory.hpp>
+#include <godot_cpp/core/guarded_scene_tree.hpp>
 #include <cstdlib>
+#include <cstdio>
 
 namespace godot {
 
@@ -44,6 +47,27 @@ AHashMap<StringName, const GDExtensionInstanceBindingCallbacks *> ClassDB::insta
 LocalVector<StringName> ClassDB::class_register_order;
 AHashMap<StringName, Object *> ClassDB::engine_singletons;
 std::mutex ClassDB::engine_singletons_mutex;
+// SceneTree is owned by the engine main loop, outside engine_singletons.
+struct GuardedSceneBindings {
+	uint64_t tree_id;
+	uint64_t window_id;
+	Variant world_pin;
+	uint64_t world_id;
+	uint64_t main_device_id;
+	LocalVector<Variant> audio_effect_pins;
+};
+static GuardedSceneBindings *scene_bindings = nullptr;
+
+static uint64_t native_variant_id(Variant object) {
+	return object.get_type() == Variant::OBJECT && object != Variant() ? uint64_t(object.call("get_instance_id")) : 0;
+}
+static void free_guarded_binding(uint64_t id) {
+	auto *native = gdextension_interface::object_get_instance_from_id(id);
+	if (!native) {
+		std::abort();
+	}
+	gdextension_interface::object_free_instance_binding(native, gdextension_interface::token);
+}
 GDExtensionInitializationLevel ClassDB::current_level = GDEXTENSION_INITIALIZATION_CORE;
 
 MethodDefinition D_METHOD(StringName p_name) {
@@ -419,23 +443,93 @@ void ClassDB::initialize(GDExtensionInitializationLevel p_level) {
 	}
 }
 
+void internal::set_guarded_scene_tree_binding(Object *tree, Object *window, Object *world, Object *main_device) {
+	if (!tree || !window || !world || !main_device || scene_bindings) {
+		std::abort();
+	}
+	scene_bindings = new GuardedSceneBindings{ tree->get_instance_id(), window->get_instance_id(), Variant(world),
+		world->get_instance_id(), main_device->get_instance_id(), {} };
+}
+
+void internal::retain_guarded_audio_effect_binding(Object *effect) {
+	if (!scene_bindings || !effect) {
+		std::abort();
+	}
+	const uint64_t id = effect->get_instance_id();
+	for (const Variant &pin : scene_bindings->audio_effect_pins) {
+		if (native_variant_id(pin) == id) {
+			return; // Same native effect may occupy multiple bus slots.
+		}
+	}
+	scene_bindings->audio_effect_pins.push_back(Variant(effect));
+}
+
+bool internal::guarded_scene_owners_unchanged() {
+	if (!scene_bindings) {
+		return false;
+	}
+	Variant tree = Engine::get_singleton()->call("get_main_loop");
+	if (native_variant_id(tree) != scene_bindings->tree_id ||
+			!gdextension_interface::object_get_instance_from_id(scene_bindings->tree_id)) {
+		return false;
+	}
+	Variant root = tree.call("get_root");
+	const auto root_id = native_variant_id(root);
+	if (root_id != scene_bindings->window_id) {
+		std::fprintf(stderr, "[ANGE] guarded root owner changed\n");
+		return false;
+	}
+	// The original Viewport observes its Ref directly and returns a primitive.
+	// A Ref-return getter here would try to enter a fresh reference cohort.
+	const auto world_id = uint64_t(root.call("get_world_3d_instance_id"));
+	if (world_id != scene_bindings->world_id) {
+		std::fprintf(stderr, "[ANGE] guarded scene owner changed root=%llu/%llu world=%llu/%llu\n",
+				(unsigned long long)root_id, (unsigned long long)scene_bindings->window_id,
+				(unsigned long long)world_id, (unsigned long long)scene_bindings->world_id);
+		return false;
+	}
+	return true;
+}
+
 void ClassDB::schedule_guarded_singleton_cleanup(
 		GDExtensionInterfaceDeviceExitBorrowLevelCleanupV1 p_borrow_cleanup,
 		GDExtensionInterfaceDeviceExitScheduleObjectCleanupV1 p_schedule_cleanup,
 		GDExtensionDeviceExitInitializationLevelContextRef p_context) {
 	const GDExtensionDeviceExitAbi abi{ 1, sizeof(GDExtensionDeviceExitAbi), 0 };
 	GDExtensionDeviceExitRegisteredCleanupRef binding_cleanup{};
-	if (p_borrow_cleanup(&abi, p_context, 1, &binding_cleanup) != 0) std::abort();
+	if (p_borrow_cleanup(&abi, p_context, 1, &binding_cleanup) != 0) {
+		std::abort();
+	}
 	std::lock_guard<std::mutex> lock(engine_singletons_mutex);
 	uint32_t scheduled = 0;
 	for (const KeyValue<StringName, Object *> &pair : engine_singletons) {
 		if (pair.key != StringName("ResourceLoader") && pair.key != StringName("OS") &&
-				pair.key != StringName("RenderingServer")) continue;
+				pair.key != StringName("RenderingServer") && pair.key != StringName("Engine") &&
+				pair.key != StringName("Input") && pair.key != StringName("InputMap") &&
+				pair.key != StringName("PhysicsServer3D") && pair.key != StringName("ProjectSettings") &&
+				pair.key != StringName("AudioServer") && pair.key != StringName("ClassDB")) {
+			continue;
+		}
 		if (p_schedule_cleanup(&abi, p_context, binding_cleanup,
-				pair.value->get_instance_id()) != 0) std::abort();
+					pair.value->get_instance_id()) != 0) {
+			std::abort();
+		}
 		++scheduled;
 	}
-	if (scheduled != 3) std::abort();
+	if (!scene_bindings || scheduled != 10) {
+		std::abort();
+	}
+	for (uint64_t id : { scene_bindings->window_id, scene_bindings->world_id,
+				 scene_bindings->main_device_id, scene_bindings->tree_id }) {
+		if (p_schedule_cleanup(&abi, p_context, binding_cleanup, id) != 0) {
+			std::abort();
+		}
+	}
+	for (const Variant &pin : scene_bindings->audio_effect_pins) {
+		if (p_schedule_cleanup(&abi, p_context, binding_cleanup, native_variant_id(pin)) != 0) {
+			std::abort();
+		}
+	}
 }
 
 void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {
@@ -478,6 +572,17 @@ void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {
 			for (const KeyValue<StringName, Object *> &pair : engine_singletons) {
 				singleton_objects.push_back(pair.value);
 			}
+		}
+		if (scene_bindings) {
+			for (const Variant &pin : scene_bindings->audio_effect_pins) {
+				free_guarded_binding(native_variant_id(pin));
+			}
+			free_guarded_binding(scene_bindings->world_id);
+			free_guarded_binding(scene_bindings->window_id);
+			free_guarded_binding(scene_bindings->main_device_id);
+			free_guarded_binding(scene_bindings->tree_id);
+			delete scene_bindings;
+			scene_bindings = nullptr;
 		}
 		for (const Object *i : singleton_objects) {
 			::godot::gdextension_interface::object_free_instance_binding((*i)._owner, ::godot::gdextension_interface::token);

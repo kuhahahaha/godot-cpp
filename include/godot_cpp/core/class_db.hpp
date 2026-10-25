@@ -37,6 +37,7 @@
 #include <godot_cpp/core/method_bind.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/core/print_string.hpp>
+#include <godot_cpp/godot.hpp>
 
 #include <godot_cpp/classes/class_db_singleton.hpp>
 
@@ -304,8 +305,16 @@ void ClassDB::_register_class(bool p_virtual, bool p_exposed, bool p_runtime) {
 	::godot::gdextension_interface::classdb_register_extension_class3(::godot::gdextension_interface::library, cl.name._native_ptr(), cl.parent_name._native_ptr(), &class_info);
 #endif
 
-	// call bind_methods etc. to register all members of the class
-	T::initialize_class();
+	// Each guarded enrollment owns a fresh ClassInfo, even when the loader
+	// retains this DSO's static GDCLASS initialized flag after a real unload.
+	// Extension parents have already been registered before their children.
+	if (GDExtensionBinding::active_guarded_user) {
+		T::_bind_methods();
+		using Parent = typename T::parent_type;
+		Parent::template register_virtuals<T, Parent>();
+	} else {
+		T::initialize_class();
+	}
 
 	// now register our class within ClassDB within Godot
 	initialize_class(classes[cl.name]);
