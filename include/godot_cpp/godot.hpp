@@ -70,6 +70,7 @@ enum ModuleInitializationLevel {
 class GDExtensionBinding {
 public:
 	using Callback = void (*)(ModuleInitializationLevel p_level);
+	using SceneReadyCallback = int32_t (*)(GDExtensionDeviceExitSceneReadyContextRef ready);
 
 	struct InitData {
 		enum class State { NEW, PENDING, ENROLLED, FAILED };
@@ -82,6 +83,10 @@ public:
 		std::thread::id owner_thread;
 		Callback frozen_initializer = nullptr;
 		Callback frozen_terminator = nullptr;
+		SceneReadyCallback scene_ready_callback = nullptr;
+		SceneReadyCallback frozen_scene_ready_callback = nullptr;
+		bool main_rd_qualification_required = false;
+		bool frozen_main_rd_qualification_required = false;
 		GDExtensionInitializationLevel minimum_initialization_level = GDEXTENSION_INITIALIZATION_CORE;
 		Callback init_callback = nullptr;
 		Callback terminate_callback = nullptr;
@@ -116,6 +121,7 @@ public:
 	static thread_local InitData *active_guarded_user;
 	static void guarded_initialize_user(void *, GDExtensionInitializationLevel);
 	static void guarded_terminate_user(void *, GDExtensionInitializationLevel);
+	static int32_t guarded_scene_ready(void *, GDExtensionDeviceExitSceneReadyContextRef) noexcept;
 	static GDExtensionBool init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization);
 
 public:
@@ -133,6 +139,8 @@ public:
 
 		void register_initializer(Callback p_init) const;
 		void register_terminator(Callback p_init) const;
+		void register_scene_ready_callback(SceneReadyCallback p_callback) const;
+		void require_main_rd_qualification() const;
 		void set_minimum_library_initialization_level(ModuleInitializationLevel p_level) const;
 		// Caller supplies audited census/services and its original preflight only.
 		// Binding overwrites ABI, protocol, tuple and typed callback identity.

@@ -123,6 +123,8 @@ bool frozen_configuration(const GDExtensionBinding::InitData &data) {
     if (data.owner_thread != std::this_thread::get_id() ||
         data.init_callback != data.frozen_initializer ||
         data.terminate_callback != data.frozen_terminator ||
+        data.scene_ready_callback != data.frozen_scene_ready_callback ||
+        data.main_rd_qualification_required != data.frozen_main_rd_qualification_required ||
         data.minimum_initialization_level != data.guard_configuration.expected_initialization.minimum_initialization_level) return false;
 #if GODOT_VERSION_MINOR >= 5
     if (data.main_loop_callbacks.startup_func != data.frozen_main_loop_callbacks.startup_func ||
@@ -149,11 +151,20 @@ void GDExtensionBinding::guarded_terminate_user(void *userdata, GDExtensionIniti
     active_guarded_user = nullptr;
 }
 
+int32_t GDExtensionBinding::guarded_scene_ready(void *userdata, GDExtensionDeviceExitSceneReadyContextRef ready) noexcept {
+    auto *data = static_cast<InitData *>(userdata);
+    if (!data || data != guarded_claimant || !frozen_configuration(*data) ||
+        !data->frozen_scene_ready_callback || active_guarded_user) std::abort();
+    active_guarded_user = data;
+    const auto error = data->frozen_scene_ready_callback(ready);
+    active_guarded_user = nullptr;
+    return error;
+}
+
 GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization) {
     if (!p_init_data || !p_init_data->init_callback || !r_initialization || !p_get_proc_address ||
         p_init_data->state != InitData::State::NEW || pending_init || guarded_claimant) return false;
     if (binding_owner != std::thread::id{} && binding_owner != std::this_thread::get_id()) return false;
-    binding_owner = std::this_thread::get_id();
 	// Make sure we weren't passed the legacy struct.
 	uint32_t *raw_interface = (uint32_t *)(void *)p_get_proc_address;
 	if (uintptr_t(p_get_proc_address) % alignof(LegacyGDExtensionInterface) == 0 && raw_interface[0] == 4 && raw_interface[1] == 0) {
@@ -204,9 +215,13 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
         }
     } reservation{p_init_data, saved_library, saved_token, saved_lookup, saved_print_error, saved_version, saved_version_proc};
     const bool guarded = p_get_proc_address("device_exit_register_guard_v1") != nullptr;
+    const bool scene_ready = p_init_data->scene_ready_callback != nullptr;
+    if ((scene_ready || p_init_data->main_rd_qualification_required) &&
+        (!guarded || !scene_ready || p_init_data->minimum_initialization_level > GDEXTENSION_INITIALIZATION_SCENE)) return false;
     if (guarded && (legacy_used || !p_init_data->guard_configured)) return false;
     DeviceExitApi candidate_api;
-    if (guarded && !candidate_api.load(p_get_proc_address)) return false;
+    if (guarded && !candidate_api.load(p_get_proc_address, scene_ready, p_init_data->main_rd_qualification_required)) return false;
+    binding_owner = std::this_thread::get_id();
     auto enroll = [&]() {
         r_initialization->initialize = initialize_level;
         r_initialization->deinitialize = deinitialize_level;
@@ -217,11 +232,14 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
             auto &configuration = p_init_data->guard_configuration;
             configuration.abi = {1, sizeof(configuration), 0};
             configuration.binding_protocol = 1;
+            if (scene_ready) configuration.entry_classes |= GDEXTENSION_DEVICE_EXIT_ENTRY_SCENE_READY_V1;
             configuration.expected_initialization = *r_initialization;
             configuration.user_initializer = guarded_initialize_user;
             configuration.user_terminator = configuration.user_cleanup_bitmap ? guarded_terminate_user : nullptr;
             p_init_data->frozen_initializer = p_init_data->init_callback;
             p_init_data->frozen_terminator = p_init_data->terminate_callback;
+            p_init_data->frozen_scene_ready_callback = p_init_data->scene_ready_callback;
+            p_init_data->frozen_main_rd_qualification_required = p_init_data->main_rd_qualification_required;
 #if GODOT_VERSION_MINOR >= 5
             p_init_data->frozen_main_loop_callbacks = p_init_data->main_loop_callbacks;
 #endif
@@ -351,6 +369,11 @@ void GDExtensionBinding::initialize_level(void *p_userdata, GDExtensionInitializ
 					init_data->exit_api.borrow_level_cleanup,
 					init_data->exit_api.schedule_object_cleanup, context);
 		}
+        if (p_level == GDEXTENSION_INITIALIZATION_SCENE && init_data->frozen_scene_ready_callback) {
+            const auto error = init_data->exit_api.register_scene_ready(
+                &exit_abi, context, guarded_scene_ready, init_data);
+            if (error) { init_data->exit_api.terminate_initialize_blocked(context, error); std::abort(); }
+        }
         const auto error = init_data->exit_api.after_binding_initialize(&exit_abi, context);
         if (error) { init_data->exit_api.terminate_initialize_blocked(context, error); std::abort(); }
     }
@@ -437,6 +460,16 @@ void GDExtensionBinding::InitObject::register_initializer(Callback p_init) const
 void GDExtensionBinding::InitObject::register_terminator(Callback p_terminate) const {
 	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->terminate_callback = p_terminate;
+}
+
+void GDExtensionBinding::InitObject::register_scene_ready_callback(SceneReadyCallback callback) const {
+    if (init_data->state != InitData::State::NEW) std::abort();
+    init_data->scene_ready_callback = callback;
+}
+
+void GDExtensionBinding::InitObject::require_main_rd_qualification() const {
+    if (init_data->state != InitData::State::NEW) std::abort();
+    init_data->main_rd_qualification_required = true;
 }
 
 void GDExtensionBinding::InitObject::set_minimum_library_initialization_level(ModuleInitializationLevel p_level) const {
