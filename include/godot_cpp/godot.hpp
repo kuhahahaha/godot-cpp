@@ -31,6 +31,8 @@
 #pragma once
 
 #include <godot_cpp/core/gdextension_interface_loader.hpp>
+#include <godot_cpp/core/device_exit_api.hpp>
+#include <thread>
 
 namespace godot {
 
@@ -70,11 +72,23 @@ public:
 	using Callback = void (*)(ModuleInitializationLevel p_level);
 
 	struct InitData {
+		enum class State { NEW, PENDING, ENROLLED, FAILED };
+		State state = State::NEW;
+		DeviceExitApi exit_api;
+		GDExtensionClassLibraryPtr original_library = nullptr;
+		GDExtensionDeviceExitGuardToken guard = {};
+		GDExtensionDeviceExitGuardRegistrationV1 guard_configuration = {};
+		bool guard_configured = false;
+		std::thread::id owner_thread;
+		Callback frozen_initializer = nullptr;
+		Callback frozen_terminator = nullptr;
 		GDExtensionInitializationLevel minimum_initialization_level = GDEXTENSION_INITIALIZATION_CORE;
 		Callback init_callback = nullptr;
 		Callback terminate_callback = nullptr;
 #if GODOT_VERSION_MINOR >= 5
 		GDExtensionMainLoopCallbacks main_loop_callbacks = {};
+		GDExtensionMainLoopCallbacks frozen_main_loop_callbacks = {};
+		bool main_loop_callbacks_registered = false;
 
 		inline bool has_main_loop_callbacks() const {
 			return main_loop_callbacks.frame_func || main_loop_callbacks.startup_func || main_loop_callbacks.shutdown_func;
@@ -95,6 +109,12 @@ public:
 	static bool api_initialized;
 	static int level_initialized[MODULE_INITIALIZATION_LEVEL_MAX];
 	static InitDataList initdata;
+	static InitData *pending_init;
+	static InitData *guarded_claimant;
+	static bool legacy_used;
+	static std::thread::id binding_owner;
+	static void guarded_initialize_user(void *, GDExtensionInitializationLevel);
+	static void guarded_terminate_user(void *, GDExtensionInitializationLevel);
 	static GDExtensionBool init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization);
 
 public:
@@ -113,6 +133,9 @@ public:
 		void register_initializer(Callback p_init) const;
 		void register_terminator(Callback p_init) const;
 		void set_minimum_library_initialization_level(ModuleInitializationLevel p_level) const;
+		// Caller supplies audited census/services and its original preflight only.
+		// Binding overwrites ABI, protocol, tuple and typed callback identity.
+		void set_guard_configuration(const GDExtensionDeviceExitGuardRegistrationV1 &) const;
 
 #if GODOT_VERSION_MINOR >= 5
 		// Register a callback that is called after all initialization levels when Godot is fully initialized.

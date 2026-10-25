@@ -455,10 +455,12 @@ def generate_gdextension_interface_loader_source(data):
 
     versions = sorted(data.keys())
 
+    pending_assignments = []
     for version in versions:
         (major, minor) = version.split(".")
         result.append(f"// Godot 4.{minor} or newer.")
         result.append(f"#if GODOT_VERSION_MINOR >= {minor}")
+        pending_assignments.append(f"#if GODOT_VERSION_MINOR >= {minor}")
 
         for func in data[version]:
             name = func["name"]
@@ -467,13 +469,16 @@ def generate_gdextension_interface_loader_source(data):
             if "deprecated" in func:
                 (deprecated_major, deprecated_minor) = func["deprecated"]["since"].split(".")
                 result.append(f"#if !defined(DISABLE_DEPRECATED) || GODOT_VERSION_MINOR < {deprecated_minor}")
+                pending_assignments.append(f"#if !defined(DISABLE_DEPRECATED) || GODOT_VERSION_MINOR < {deprecated_minor}")
 
             result.append(f"{fn} {name} = nullptr;")
 
             if "deprecated" in func:
                 result.append("#endif")
+                pending_assignments.append("#endif")
 
         result.append(f"#endif // GODOT_VERSION_MINOR >= {minor}")
+        pending_assignments.append("#endif")
         result.append("")
 
     result.append("} // namespace gdextension_interface")
@@ -487,6 +492,7 @@ def generate_gdextension_interface_loader_source(data):
         (major, minor) = version.split(".")
         result.append(f"\t// Godot 4.{minor} or newer.")
         result.append(f"#if GODOT_VERSION_MINOR >= {minor}")
+        pending_assignments.append(f"#if GODOT_VERSION_MINOR >= {minor}")
 
         for func in data[version]:
             name = func["name"]
@@ -508,14 +514,21 @@ def generate_gdextension_interface_loader_source(data):
             if "deprecated" in func:
                 (deprecated_major, deprecated_minor) = func["deprecated"]["since"].split(".")
                 result.append(f"#if !defined(DISABLE_DEPRECATED) || GODOT_VERSION_MINOR < {deprecated_minor}")
+                pending_assignments.append(f"#if !defined(DISABLE_DEPRECATED) || GODOT_VERSION_MINOR < {deprecated_minor}")
 
-            result.append(f"\tLOAD_PROC_ADDRESS({name}, {fn});")
+            result.append(f'\tconst auto pending_{name} = ({fn})p_get_proc_address("{name}");')
+            result.append(f'\tif (!pending_{name}) return false;')
+            pending_assignments.append(f"\t::godot::gdextension_interface::{name} = pending_{name};")
 
             if "deprecated" in func:
                 result.append("#endif")
+                pending_assignments.append("#endif")
 
         result.append(f"#endif // GODOT_VERSION_MINOR >= {minor}")
+        pending_assignments.append("#endif")
         result.append("")
+
+    result.extend(pending_assignments)
 
     result.append("\treturn true;")
     result.append("}")

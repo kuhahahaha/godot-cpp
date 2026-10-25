@@ -112,20 +112,41 @@ typedef struct {
 	GDExtensionInterfacePrintErrorWithMessage print_error_with_message;
 } LegacyGDExtensionInterface;
 
+GDExtensionBinding::InitData *GDExtensionBinding::pending_init = nullptr;
+GDExtensionBinding::InitData *GDExtensionBinding::guarded_claimant = nullptr;
+bool GDExtensionBinding::legacy_used = false;
+std::thread::id GDExtensionBinding::binding_owner;
+namespace {
+constexpr GDExtensionDeviceExitAbi exit_abi{1, sizeof(GDExtensionDeviceExitAbi), 0};
+bool frozen_configuration(const GDExtensionBinding::InitData &data) {
+    if (data.owner_thread != std::this_thread::get_id() ||
+        data.init_callback != data.frozen_initializer ||
+        data.terminate_callback != data.frozen_terminator ||
+        data.minimum_initialization_level != data.guard_configuration.expected_initialization.minimum_initialization_level) return false;
+#if GODOT_VERSION_MINOR >= 5
+    if (data.main_loop_callbacks.startup_func != data.frozen_main_loop_callbacks.startup_func ||
+        data.main_loop_callbacks.shutdown_func != data.frozen_main_loop_callbacks.shutdown_func ||
+        data.main_loop_callbacks.frame_func != data.frozen_main_loop_callbacks.frame_func) return false;
+#endif
+    return true;
+}
+}
+void GDExtensionBinding::guarded_initialize_user(void *userdata, GDExtensionInitializationLevel level) {
+    auto *data = static_cast<InitData *>(userdata);
+    if (!data || data != guarded_claimant || !frozen_configuration(*data)) std::abort();
+    data->frozen_initializer(static_cast<ModuleInitializationLevel>(level));
+}
+void GDExtensionBinding::guarded_terminate_user(void *userdata, GDExtensionInitializationLevel level) {
+    auto *data = static_cast<InitData *>(userdata);
+    if (!data || data != guarded_claimant || !frozen_configuration(*data)) std::abort();
+    if (data->frozen_terminator) data->frozen_terminator(static_cast<ModuleInitializationLevel>(level));
+}
+
 GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization) {
-	if (!p_init_data || !p_init_data->init_callback) {
-		ERR_FAIL_V_MSG(false, "Initialization callback must be defined.");
-	}
-
-	if (api_initialized) {
-		r_initialization->initialize = initialize_level;
-		r_initialization->deinitialize = deinitialize_level;
-		r_initialization->userdata = p_init_data;
-		r_initialization->minimum_initialization_level = p_init_data->minimum_initialization_level;
-
-		return true;
-	}
-
+    if (!p_init_data || !p_init_data->init_callback || !r_initialization || !p_get_proc_address ||
+        p_init_data->state != InitData::State::NEW || pending_init || guarded_claimant) return false;
+    if (binding_owner != std::thread::id{} && binding_owner != std::this_thread::get_id()) return false;
+    binding_owner = std::this_thread::get_id();
 	// Make sure we weren't passed the legacy struct.
 	uint32_t *raw_interface = (uint32_t *)(void *)p_get_proc_address;
 	if (uintptr_t(p_get_proc_address) % alignof(LegacyGDExtensionInterface) == 0 && raw_interface[0] == 4 && raw_interface[1] == 0) {
@@ -135,6 +156,86 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
 		ERR_PRINT_EARLY("Cannot load a GDExtension built for Godot 4.1+ in Godot 4.0.");
 		return false;
 	}
+
+    pending_init = p_init_data;
+    p_init_data->state = InitData::State::PENDING;
+    p_init_data->owner_thread = std::this_thread::get_id();
+    const auto saved_library = ::godot::gdextension_interface::library;
+    const auto saved_token = ::godot::gdextension_interface::token;
+    const auto saved_lookup = ::godot::gdextension_interface::get_proc_address;
+    const auto saved_print_error = ::godot::gdextension_interface::print_error;
+    const auto saved_version = ::godot::gdextension_interface::godot_version;
+#if GODOT_VERSION_MINOR >= 5
+    const auto saved_version_proc = ::godot::gdextension_interface::get_godot_version2;
+#else
+    const auto saved_version_proc = ::godot::gdextension_interface::get_godot_version;
+#endif
+    struct PendingReservation {
+        InitData *data;
+        GDExtensionClassLibraryPtr library;
+        void *token;
+        GDExtensionInterfaceGetProcAddress lookup;
+        GDExtensionInterfacePrintError print_error;
+        decltype(saved_version) version;
+        decltype(saved_version_proc) version_proc;
+        bool committed = false;
+        ~PendingReservation() {
+            if (!committed) {
+                data->state = InitData::State::FAILED;
+                ::godot::gdextension_interface::library = library;
+                ::godot::gdextension_interface::token = token;
+                ::godot::gdextension_interface::get_proc_address = lookup;
+                ::godot::gdextension_interface::print_error = print_error;
+                ::godot::gdextension_interface::godot_version = version;
+#if GODOT_VERSION_MINOR >= 5
+                ::godot::gdextension_interface::get_godot_version2 = version_proc;
+#else
+                ::godot::gdextension_interface::get_godot_version = version_proc;
+#endif
+            }
+            pending_init = nullptr;
+        }
+    } reservation{p_init_data, saved_library, saved_token, saved_lookup, saved_print_error, saved_version, saved_version_proc};
+    const bool guarded = p_get_proc_address("device_exit_register_guard_v1") != nullptr;
+    if (guarded && (legacy_used || !p_init_data->guard_configured)) return false;
+    DeviceExitApi candidate_api;
+    if (guarded && !candidate_api.load(p_get_proc_address)) return false;
+    auto enroll = [&]() {
+        r_initialization->initialize = initialize_level;
+        r_initialization->deinitialize = deinitialize_level;
+        r_initialization->userdata = p_init_data;
+        r_initialization->minimum_initialization_level = p_init_data->minimum_initialization_level;
+        p_init_data->original_library = p_library;
+        if (guarded) {
+            auto &configuration = p_init_data->guard_configuration;
+            configuration.abi = {1, sizeof(configuration), 0};
+            configuration.binding_protocol = 1;
+            configuration.expected_initialization = *r_initialization;
+            configuration.user_initializer = guarded_initialize_user;
+            configuration.user_terminator = configuration.user_cleanup_bitmap ? guarded_terminate_user : nullptr;
+            p_init_data->frozen_initializer = p_init_data->init_callback;
+            p_init_data->frozen_terminator = p_init_data->terminate_callback;
+#if GODOT_VERSION_MINOR >= 5
+            p_init_data->frozen_main_loop_callbacks = p_init_data->main_loop_callbacks;
+#endif
+            if (candidate_api.register_guard(p_library, &configuration, &p_init_data->guard) != 0) return false;
+            p_init_data->exit_api = candidate_api;
+            guarded_claimant = p_init_data;
+        }
+        p_init_data->state = InitData::State::ENROLLED;
+        reservation.committed = true;
+        return true;
+    };
+    // Legacy use is sticky before the first mutation of shared binding state.
+    if (!guarded) legacy_used = true;
+
+    if (api_initialized) {
+        if (!enroll()) return false;
+        ::godot::gdextension_interface::library = p_library;
+        ::godot::gdextension_interface::token = p_library;
+        return true;
+    }
+
 
 	// Load the "print_error" function first (needed by the ERR_PRINT_EARLY() macro).
 	::godot::gdextension_interface::print_error = (GDExtensionInterfacePrintError)p_get_proc_address("print_error");
@@ -181,14 +282,11 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
 		return false;
 	}
 
-	if (!::godot::internal::load_gdextension_interface(p_get_proc_address)) {
-		return false;
-	}
-
-	r_initialization->initialize = initialize_level;
-	r_initialization->deinitialize = deinitialize_level;
-	r_initialization->userdata = p_init_data;
-	r_initialization->minimum_initialization_level = p_init_data->minimum_initialization_level;
+    if (!enroll()) return false;
+    if (!::godot::internal::load_gdextension_interface(p_get_proc_address)) {
+        p_init_data->state = InitData::State::FAILED;
+        return false;
+    }
 
 	Variant::init_bindings();
 	::godot::internal::register_engine_classes();
@@ -202,12 +300,21 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
 
 void GDExtensionBinding::initialize_level(void *p_userdata, GDExtensionInitializationLevel p_level) {
 	ERR_FAIL_COND(static_cast<ModuleInitializationLevel>(p_level) >= MODULE_INITIALIZATION_LEVEL_MAX);
-	ClassDB::current_level = p_level;
-
 	InitData *init_data = static_cast<InitData *>(p_userdata);
-	if (init_data && init_data->init_callback) {
-		init_data->init_callback(static_cast<ModuleInitializationLevel>(p_level));
-	}
+    GDExtensionDeviceExitInitializationLevelContextRef context{};
+    const bool guarded = init_data && init_data == guarded_claimant;
+    if (guarded) {
+        const auto error = init_data->exit_api.borrow_initialize_level(&exit_abi, init_data->original_library, p_level, &context);
+        if (error || !frozen_configuration(*init_data)) {
+            init_data->exit_api.terminate_initialize_blocked(context, error ? error : int32_t(ERR_INVALID_DATA));
+            std::abort();
+        }
+        ClassDB::current_level = p_level;
+        guarded_initialize_user(init_data, p_level);
+    } else if (init_data && init_data->init_callback) {
+        ClassDB::current_level = p_level;
+        init_data->init_callback(static_cast<ModuleInitializationLevel>(p_level));
+    }
 
 	if (level_initialized[p_level] == 0) {
 		ClassDB::initialize(p_level);
@@ -215,14 +322,15 @@ void GDExtensionBinding::initialize_level(void *p_userdata, GDExtensionInitializ
 	level_initialized[p_level]++;
 
 #if GODOT_VERSION_MINOR >= 5
-	if ((ModuleInitializationLevel)p_level == MODULE_INITIALIZATION_LEVEL_CORE && init_data && init_data->has_main_loop_callbacks()) {
-		::godot::gdextension_interface::register_main_loop_callbacks(::godot::gdextension_interface::library, &init_data->main_loop_callbacks);
+	if (init_data && !init_data->main_loop_callbacks_registered && init_data->has_main_loop_callbacks()) {
+		::godot::gdextension_interface::register_main_loop_callbacks(init_data->original_library, &init_data->main_loop_callbacks);
+		init_data->main_loop_callbacks_registered = true;
 	}
 #endif
 
 	if ((ModuleInitializationLevel)p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
 #if GODOT_VERSION_MINOR >= 5
-		::godot::gdextension_interface::editor_register_get_classes_used_callback(::godot::gdextension_interface::library, &ClassDB::_editor_get_classes_used_callback);
+		::godot::gdextension_interface::editor_register_get_classes_used_callback(init_data->original_library, &ClassDB::_editor_get_classes_used_callback);
 #endif
 
 		const ::godot::internal::DocData &doc_data = ::godot::internal::get_doc_data();
@@ -230,22 +338,47 @@ void GDExtensionBinding::initialize_level(void *p_userdata, GDExtensionInitializ
 			doc_data.load_data();
 		}
 	}
+    if (guarded) {
+        const auto error = init_data->exit_api.after_binding_initialize(&exit_abi, context);
+        if (error) { init_data->exit_api.terminate_initialize_blocked(context, error); std::abort(); }
+    }
+
 }
 
 void GDExtensionBinding::deinitialize_level(void *p_userdata, GDExtensionInitializationLevel p_level) {
 	ERR_FAIL_COND(static_cast<ModuleInitializationLevel>(p_level) >= MODULE_INITIALIZATION_LEVEL_MAX);
-	ClassDB::current_level = p_level;
-
 	InitData *init_data = static_cast<InitData *>(p_userdata);
-	if (init_data && init_data->terminate_callback) {
-		init_data->terminate_callback(static_cast<ModuleInitializationLevel>(p_level));
-	}
+    GDExtensionDeviceExitDeinitLevelContextRef context{};
+    const bool guarded = init_data && init_data == guarded_claimant;
+    auto fatal = [&](int32_t error) {
+        init_data->exit_api.terminate_blocked(context, error);
+        std::abort();
+    };
+    if (guarded) {
+        auto error = init_data->exit_api.borrow_deinit_level(&exit_abi, init_data->original_library, p_level, &context);
+        if (error) fatal(error);
+        if (!frozen_configuration(*init_data)) fatal(int32_t(ERR_INVALID_DATA));
+        error = init_data->exit_api.begin_user_terminator(&exit_abi, init_data->guard, context);
+        if (error) fatal(error);
+        ClassDB::current_level = p_level;
+        guarded_terminate_user(init_data, p_level);
+        error = init_data->exit_api.after_user_terminator(&exit_abi, context);
+        if (error) fatal(error);
+    } else if (init_data && init_data->terminate_callback) {
+        ClassDB::current_level = p_level;
+        init_data->terminate_callback(static_cast<ModuleInitializationLevel>(p_level));
+    }
 
 	level_initialized[p_level]--;
 	if (level_initialized[p_level] == 0) {
 		EditorPlugins::deinitialize(p_level);
 		ClassDB::deinitialize(p_level);
 	}
+    if (guarded) {
+        const auto error = init_data->exit_api.after_binding_deinit(&exit_abi, context);
+        if (error) fatal(error);
+    }
+
 }
 
 void GDExtensionBinding::InitDataList::add(InitData *p_data) {
@@ -281,30 +414,42 @@ GDExtensionBinding::InitObject::InitObject(GDExtensionInterfaceGetProcAddress p_
 }
 
 void GDExtensionBinding::InitObject::register_initializer(Callback p_init) const {
+	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->init_callback = p_init;
 }
 
 void GDExtensionBinding::InitObject::register_terminator(Callback p_terminate) const {
+	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->terminate_callback = p_terminate;
 }
 
 void GDExtensionBinding::InitObject::set_minimum_library_initialization_level(ModuleInitializationLevel p_level) const {
+	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->minimum_initialization_level = static_cast<GDExtensionInitializationLevel>(p_level);
 }
 
 #if GODOT_VERSION_MINOR >= 5
 void GDExtensionBinding::InitObject::register_startup_callback(GDExtensionMainLoopStartupCallback p_callback) const {
+	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->main_loop_callbacks.startup_func = p_callback;
 }
 
 void GDExtensionBinding::InitObject::register_frame_callback(GDExtensionMainLoopFrameCallback p_callback) const {
+	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->main_loop_callbacks.frame_func = p_callback;
 }
 
 void GDExtensionBinding::InitObject::register_shutdown_callback(GDExtensionMainLoopShutdownCallback p_callback) const {
+	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->main_loop_callbacks.shutdown_func = p_callback;
 }
 #endif
+
+void GDExtensionBinding::InitObject::set_guard_configuration(const GDExtensionDeviceExitGuardRegistrationV1 &configuration) const {
+    if (init_data->state != InitData::State::NEW) std::abort();
+    init_data->guard_configuration = configuration;
+    init_data->guard_configured = true;
+}
 
 GDExtensionBool GDExtensionBinding::InitObject::init() const {
 	return GDExtensionBinding::init(get_proc_address, library, init_data, initialization);
