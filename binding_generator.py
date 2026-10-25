@@ -499,6 +499,9 @@ def generate_gdextension_interface_loader_source(data):
             if name == "print_error":
                 # We manually load "print_error" early, so don't load it again here.
                 continue
+            if name.startswith("device_session_"):
+                # Original session capabilities are exposed by guarded lookup only.
+                continue
             if name.startswith("device_exit_") and name not in {
                 "device_exit_bootstrap_library_v1",
                 "device_exit_retain_library_view_v1",

@@ -3973,6 +3973,121 @@
                     "type": "uint64_t"
                 }
             ]
+        },
+        {
+            "name": "GDExtensionDeviceRegistryContextRef",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "registry_instance",
+                    "type": "uint64_t",
+                    "description": [
+                        "registry_instance"
+                    ]
+                },
+                {
+                    "name": "handle_serial",
+                    "type": "uint64_t",
+                    "description": [
+                        "handle_serial"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOriginalDeviceSessionRef",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "registry_instance",
+                    "type": "uint64_t",
+                    "description": [
+                        "registry_instance"
+                    ]
+                },
+                {
+                    "name": "handle_serial",
+                    "type": "uint64_t",
+                    "description": [
+                        "handle_serial"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionDeviceSessionViewV1",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "device_epoch",
+                    "type": "uint64_t",
+                    "description": [
+                        "device_epoch"
+                    ]
+                },
+                {
+                    "name": "session",
+                    "type": "uint64_t",
+                    "description": [
+                        "session"
+                    ]
+                },
+                {
+                    "name": "revision",
+                    "type": "uint64_t",
+                    "description": [
+                        "revision"
+                    ]
+                },
+                {
+                    "name": "state",
+                    "type": "uint32_t",
+                    "description": [
+                        "state"
+                    ]
+                },
+                {
+                    "name": "new_work",
+                    "type": "uint32_t",
+                    "description": [
+                        "new_work"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionDeviceSessionResultV1",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "native_error",
+                    "type": "int32_t",
+                    "description": [
+                        "native_error"
+                    ]
+                },
+                {
+                    "name": "reason",
+                    "type": "uint32_t",
+                    "description": [
+                        "reason"
+                    ]
+                },
+                {
+                    "name": "expected",
+                    "type": "uint64_t",
+                    "description": [
+                        "expected"
+                    ]
+                },
+                {
+                    "name": "actual",
+                    "type": "uint64_t",
+                    "description": [
+                        "actual"
+                    ]
+                }
+            ]
         }
     ],
     "interface": [
@@ -10356,6 +10471,186 @@
                     ]
                 }
             ]
+        },
+        {
+            "name": "device_session_bind_v1",
+            "since": "4.7",
+            "description": [
+                "Candidate original RD session interface; authenticated guarded initialization binding."
+            ],
+            "arguments": [
+                {
+                    "name": "abi",
+                    "type": "const GDExtensionDeviceExitAbi*",
+                    "description": [
+                        "abi"
+                    ]
+                },
+                {
+                    "name": "frame",
+                    "type": "GDExtensionDeviceExitInitializationLevelContextRef",
+                    "description": [
+                        "frame"
+                    ]
+                },
+                {
+                    "name": "rd",
+                    "type": "GDExtensionObjectPtr",
+                    "description": [
+                        "rd"
+                    ]
+                },
+                {
+                    "name": "out_context",
+                    "type": "GDExtensionDeviceRegistryContextRef*",
+                    "description": [
+                        "out_context"
+                    ]
+                },
+                {
+                    "name": "out_session",
+                    "type": "GDExtensionOriginalDeviceSessionRef*",
+                    "description": [
+                        "out_session"
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Native Error plus OI-01 reason, expected and actual. Reasons: 0 success, 1 source_version, 2 canonical, 3 nonzero, 4 context_present, 5 context_match, 6 device_epoch, 7 registered, 8 retained, 9 association_match, 10 authorized_phase, 11 capacity, 12 session_counter_available, 13 epoch_counter_available."
+                ]
+            }
+        },
+        {
+            "name": "device_session_copy_v1",
+            "since": "4.7",
+            "description": [
+                "Candidate original RD session interface; authenticated guarded initialization binding."
+            ],
+            "arguments": [
+                {
+                    "name": "context",
+                    "type": "GDExtensionDeviceRegistryContextRef",
+                    "description": [
+                        "context"
+                    ]
+                },
+                {
+                    "name": "session",
+                    "type": "GDExtensionOriginalDeviceSessionRef",
+                    "description": [
+                        "session"
+                    ]
+                },
+                {
+                    "name": "exporting",
+                    "type": "uint32_t",
+                    "description": [
+                        "exporting"
+                    ]
+                },
+                {
+                    "name": "out_view",
+                    "type": "GDExtensionDeviceSessionViewV1*",
+                    "description": [
+                        "out_view"
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Native Error plus OI-01 reason, expected and actual. Reasons: 0 success, 1 source_version, 2 canonical, 3 nonzero, 4 context_present, 5 context_match, 6 device_epoch, 7 registered, 8 retained, 9 association_match, 10 authorized_phase, 11 capacity, 12 session_counter_available, 13 epoch_counter_available."
+                ]
+            }
+        },
+        {
+            "name": "device_session_resolve_v1",
+            "since": "4.7",
+            "description": [
+                "Candidate original RD session interface; authenticated guarded initialization binding."
+            ],
+            "arguments": [
+                {
+                    "name": "context",
+                    "type": "GDExtensionDeviceRegistryContextRef",
+                    "description": [
+                        "context"
+                    ]
+                },
+                {
+                    "name": "epoch",
+                    "type": "uint64_t",
+                    "description": [
+                        "epoch"
+                    ]
+                },
+                {
+                    "name": "session",
+                    "type": "uint64_t",
+                    "description": [
+                        "session"
+                    ]
+                },
+                {
+                    "name": "out_session",
+                    "type": "GDExtensionOriginalDeviceSessionRef*",
+                    "description": [
+                        "out_session"
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Native Error plus OI-01 reason, expected and actual. Reasons: 0 success, 1 source_version, 2 canonical, 3 nonzero, 4 context_present, 5 context_match, 6 device_epoch, 7 registered, 8 retained, 9 association_match, 10 authorized_phase, 11 capacity, 12 session_counter_available, 13 epoch_counter_available."
+                ]
+            }
+        },
+        {
+            "name": "device_session_release_context_v1",
+            "since": "4.7",
+            "description": [
+                "Candidate original RD session interface; authenticated guarded initialization binding."
+            ],
+            "arguments": [
+                {
+                    "name": "context",
+                    "type": "GDExtensionDeviceRegistryContextRef",
+                    "description": [
+                        "context"
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Native Error plus OI-01 reason, expected and actual. Reasons: 0 success, 1 source_version, 2 canonical, 3 nonzero, 4 context_present, 5 context_match, 6 device_epoch, 7 registered, 8 retained, 9 association_match, 10 authorized_phase, 11 capacity, 12 session_counter_available, 13 epoch_counter_available."
+                ]
+            }
+        },
+        {
+            "name": "device_session_release_session_v1",
+            "since": "4.7",
+            "description": [
+                "Candidate original RD session interface; authenticated guarded initialization binding."
+            ],
+            "arguments": [
+                {
+                    "name": "session",
+                    "type": "GDExtensionOriginalDeviceSessionRef",
+                    "description": [
+                        "session"
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Native Error plus OI-01 reason, expected and actual. Reasons: 0 success, 1 source_version, 2 canonical, 3 nonzero, 4 context_present, 5 context_match, 6 device_epoch, 7 registered, 8 retained, 9 association_match, 10 authorized_phase, 11 capacity, 12 session_counter_available, 13 epoch_counter_available."
+                ]
+            }
         }
     ]
 }
