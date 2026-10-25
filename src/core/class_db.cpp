@@ -444,7 +444,11 @@ void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {
 		}
 	}
 
-	if (p_level == GDEXTENSION_INITIALIZATION_CORE) {
+	// A guarded library receives no callbacks below its declared minimum.
+	// Release this binding owner's singleton wrappers in its final BINDING phase.
+	const auto *guarded = GDExtensionBinding::guarded_claimant;
+	const auto binding_terminal_level = guarded ? guarded->minimum_initialization_level : GDEXTENSION_INITIALIZATION_CORE;
+	if (p_level == binding_terminal_level) {
 		// Make a new list of the singleton objects, since freeing the instance bindings will lead to
 		// elements getting removed from engine_singletons.
 		LocalVector<Object *> singleton_objects;
