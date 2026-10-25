@@ -346,6 +346,11 @@ void GDExtensionBinding::initialize_level(void *p_userdata, GDExtensionInitializ
 		}
 	}
     if (guarded) {
+		if (p_level == init_data->minimum_initialization_level) {
+			ClassDB::schedule_guarded_singleton_cleanup(
+					init_data->exit_api.borrow_level_cleanup,
+					init_data->exit_api.schedule_object_cleanup, context);
+		}
         const auto error = init_data->exit_api.after_binding_initialize(&exit_abi, context);
         if (error) { init_data->exit_api.terminate_initialize_blocked(context, error); std::abort(); }
     }

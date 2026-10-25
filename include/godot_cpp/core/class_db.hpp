@@ -210,6 +210,9 @@ public:
 
 	static void initialize(GDExtensionInitializationLevel p_level);
 	static void deinitialize(GDExtensionInitializationLevel p_level);
+	static void schedule_guarded_singleton_cleanup(GDExtensionInterfaceDeviceExitBorrowLevelCleanupV1 p_borrow_cleanup,
+			GDExtensionInterfaceDeviceExitScheduleObjectCleanupV1 p_schedule_cleanup,
+			GDExtensionDeviceExitInitializationLevelContextRef p_context);
 
 	CLASSDB_SINGLETON_FORWARD_METHODS;
 };

@@ -35,6 +35,7 @@
 #include <godot_cpp/templates/vector.hpp>
 
 #include <godot_cpp/core/memory.hpp>
+#include <cstdlib>
 
 namespace godot {
 
@@ -416,6 +417,25 @@ void ClassDB::initialize(GDExtensionInitializationLevel p_level) {
 
 		// Nothing to do here for now...
 	}
+}
+
+void ClassDB::schedule_guarded_singleton_cleanup(
+		GDExtensionInterfaceDeviceExitBorrowLevelCleanupV1 p_borrow_cleanup,
+		GDExtensionInterfaceDeviceExitScheduleObjectCleanupV1 p_schedule_cleanup,
+		GDExtensionDeviceExitInitializationLevelContextRef p_context) {
+	const GDExtensionDeviceExitAbi abi{ 1, sizeof(GDExtensionDeviceExitAbi), 0 };
+	GDExtensionDeviceExitRegisteredCleanupRef binding_cleanup{};
+	if (p_borrow_cleanup(&abi, p_context, 1, &binding_cleanup) != 0) std::abort();
+	std::lock_guard<std::mutex> lock(engine_singletons_mutex);
+	uint32_t scheduled = 0;
+	for (const KeyValue<StringName, Object *> &pair : engine_singletons) {
+		if (pair.key != StringName("ResourceLoader") && pair.key != StringName("OS") &&
+				pair.key != StringName("RenderingServer")) continue;
+		if (p_schedule_cleanup(&abi, p_context, binding_cleanup,
+				pair.value->get_instance_id()) != 0) std::abort();
+		++scheduled;
+	}
+	if (scheduled != 3) std::abort();
 }
 
 void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {

@@ -9,6 +9,7 @@ struct DeviceExitApi {
 	GDExtensionInterfaceDeviceExitBorrowInitializeLevelV1 borrow_initialize_level = nullptr;
 	GDExtensionInterfaceDeviceExitBorrowDeinitLevelV1 borrow_deinit_level = nullptr;
 	GDExtensionInterfaceDeviceExitBorrowLevelCleanupV1 borrow_level_cleanup = nullptr;
+	GDExtensionInterfaceDeviceExitScheduleObjectCleanupV1 schedule_object_cleanup = nullptr;
 	GDExtensionInterfaceDeviceExitAcquireCodeHoldV1 acquire_code_hold = nullptr;
 	GDExtensionInterfaceDeviceExitCloneCodeHoldV1 clone_code_hold = nullptr;
 	GDExtensionInterfaceDeviceExitReleaseCodeHoldV1 release_code_hold = nullptr;
@@ -34,6 +35,8 @@ struct DeviceExitApi {
 		if (!candidate.borrow_deinit_level) return false;
 		candidate.borrow_level_cleanup = (GDExtensionInterfaceDeviceExitBorrowLevelCleanupV1)lookup("device_exit_borrow_level_cleanup_v1");
 		if (!candidate.borrow_level_cleanup) return false;
+		candidate.schedule_object_cleanup = (GDExtensionInterfaceDeviceExitScheduleObjectCleanupV1)lookup("device_exit_schedule_object_cleanup_v1");
+		if (!candidate.schedule_object_cleanup) return false;
 		candidate.acquire_code_hold = (GDExtensionInterfaceDeviceExitAcquireCodeHoldV1)lookup("device_exit_acquire_code_hold_v1");
 		if (!candidate.acquire_code_hold) return false;
 		candidate.clone_code_hold = (GDExtensionInterfaceDeviceExitCloneCodeHoldV1)lookup("device_exit_clone_code_hold_v1");
