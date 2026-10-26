@@ -56,6 +56,7 @@ struct DeviceExitApi {
 	GDExtensionInterfaceDeviceSessionQualificationCopyV1 qualification_copy = nullptr;
 	GDExtensionInterfaceDeviceSessionQualificationReleaseV1 qualification_release = nullptr;
 	GDExtensionInterfaceDeviceSessionQualificationCloseV1 qualification_close = nullptr;
+	GDExtensionInterfaceDeviceSessionQualificationCancelV1 qualification_cancel = nullptr;
 	GDExtensionInterfaceDeviceSessionQualificationStorageCreateV1 qualification_storage_create = nullptr;
 	GDExtensionInterfaceDeviceSessionQualificationStorageRetireV1 qualification_storage_retire = nullptr;
 	GDExtensionInterfaceDeviceSessionQualificationStorageRetireObserveV1 qualification_storage_retire_observe = nullptr;
@@ -133,6 +134,8 @@ struct DeviceExitApi {
 			if (!candidate.qualification_release) return false;
 			candidate.qualification_close = (GDExtensionInterfaceDeviceSessionQualificationCloseV1)lookup("device_session_qualification_close_v1");
 			if (!candidate.qualification_close) return false;
+			candidate.qualification_cancel = (GDExtensionInterfaceDeviceSessionQualificationCancelV1)lookup("device_session_qualification_cancel_v1");
+			if (!candidate.qualification_cancel) return false;
 			candidate.qualification_storage_create = (GDExtensionInterfaceDeviceSessionQualificationStorageCreateV1)lookup("device_session_qualification_storage_create_v1");
 			if (!candidate.qualification_storage_create) return false;
 			candidate.qualification_storage_retire = (GDExtensionInterfaceDeviceSessionQualificationStorageRetireV1)lookup("device_session_qualification_storage_retire_v1");

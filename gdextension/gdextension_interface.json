@@ -5325,6 +5325,78 @@
                     "value": 19
                 }
             ]
+        },
+        {
+            "name": "GDExtensionQualificationUploadRoleV1",
+            "kind": "enum",
+            "values": [
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_DOMAIN_COUNT_V1",
+                    "value": 0
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_FAULT_PLANE_V1",
+                    "value": 1
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_INPUT_GATE_V1",
+                    "value": 2
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_INSTANCE_GATE_V1",
+                    "value": 3
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_MAPPING_V1",
+                    "value": 4
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_OUTPUT_GATE_V1",
+                    "value": 5
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_RAW_INPUT_V1",
+                    "value": 6
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_RAW_OUTPUT_V1",
+                    "value": 7
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_ROLE_COUNT_V1",
+                    "value": 8
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionQualificationUploadOwnerKindV1",
+            "kind": "enum",
+            "values": [
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_OWNER_INVALID_V1",
+                    "value": 0
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_OWNER_E05_V1",
+                    "value": 1
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_OWNER_E09_V1",
+                    "value": 2
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_OWNER_E22_V1",
+                    "value": 3
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_OWNER_E23_V1",
+                    "value": 4
+                },
+                {
+                    "name": "GDEXTENSION_QUALIFICATION_UPLOAD_OWNER_E24_V1",
+                    "value": 5
+                }
+            ]
         }
     ],
     "interface": [
@@ -12997,6 +13069,35 @@
                     "type": "GDExtensionNativeUnitRetireRefV1",
                     "description": [
                         "Synchronous in-process retire."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original native Error/reason observation. A possible effect requires a retained original child/ticket, never an unowned bare error."
+                ]
+            }
+        },
+        {
+            "name": "device_session_qualification_cancel_v1",
+            "since": "4.7",
+            "description": [
+                "Stops future upload or prepared-record admission on the same original opt-in ticket. It does not acknowledge or discard physical work."
+            ],
+            "arguments": [
+                {
+                    "name": "bridge",
+                    "type": "GDExtensionQualificationBridgeRefV1",
+                    "description": [
+                        "Synchronous in-process bridge."
+                    ]
+                },
+                {
+                    "name": "ticket",
+                    "type": "GDExtensionQualificationTicketRefV1",
+                    "description": [
+                        "Synchronous in-process ticket."
                     ]
                 }
             ],
