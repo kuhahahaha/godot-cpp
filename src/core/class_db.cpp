@@ -52,11 +52,11 @@ std::mutex ClassDB::engine_singletons_mutex;
 // SceneTree is owned by the engine main loop, outside engine_singletons.
 struct GuardedAudioEffectPin {
     Variant pin;
-    bool binding_scheduled = false;
+    bool user_scheduled = false;
 };
 struct GuardedSceneBindings {
-    std::array<uint64_t, 7> ids{};
-    std::array<bool, 7> binding_scheduled{};
+    std::array<uint64_t, 10> ids{};
+    std::array<bool, 10> binding_scheduled{};
     Variant world_pin;
     LocalVector<GuardedAudioEffectPin> audio_effect_pins;
 };
@@ -482,10 +482,25 @@ void internal::retain_guarded_audio_effect_binding(Object *effect, const DeviceE
         if (native_variant_id(entry.pin) == id) return;
     }
     // Capture the actual pin before assigning all existing holders of this
-    // object to BINDING, then schedule before observing the next effect.
+    // object to USER, then schedule before observing the next effect.
     scene_bindings->audio_effect_pins.push_back({Variant(effect), false});
-    schedule_guarded_ready_object(effect, 1, api, ready);
-    scene_bindings->audio_effect_pins[scene_bindings->audio_effect_pins.size() - 1].binding_scheduled = true;
+    schedule_guarded_ready_object(effect, 0, api, ready);
+    scene_bindings->audio_effect_pins[scene_bindings->audio_effect_pins.size() - 1].user_scheduled = true;
+}
+
+void internal::release_guarded_audio_effect_bindings() {
+    if (!scene_bindings) return;
+    auto &pins=scene_bindings->audio_effect_pins;
+    // Ready records final instances after effect resources. Both their native
+    // Ref side effects and our binding cleanup belong to the same USER action.
+    for (int64_t i=int64_t(pins.size())-1;i>=0;--i) {
+        const auto &entry=pins[size_t(i)];
+        if (!entry.user_scheduled) std::abort();
+        free_guarded_binding(native_variant_id(entry.pin));
+    }
+    // Return instance native pins before their parent resource pins, still in
+    // USER. Keeping a pin alive never licenses a cross-action unreference.
+    while (pins.size()) pins.resize(pins.size()-1);
 }
 
 bool internal::guarded_scene_owners_unchanged() {
@@ -493,7 +508,7 @@ bool internal::guarded_scene_owners_unchanged() {
     if (!scene_bindings) return true;
     const auto &ids = scene_bindings->ids;
     for (const auto &entry : {std::pair<size_t, const char*>{4, "RenderingServer"},
-            {5, "PhysicsServer3D"}, {6, "AudioServer"}}) {
+            {5, "PhysicsServer3D"}, {6, "AudioServer"}, {8, "DisplayServer"}, {9, "NavigationServer3D"}}) {
         if (!ids[entry.first]) continue;
         const StringName name(entry.second);
         auto *native = gdextension_interface::global_get_singleton(name._native_ptr());
@@ -528,7 +543,11 @@ void ClassDB::schedule_guarded_singleton_cleanup(
 				pair.key != StringName("RenderingServer") && pair.key != StringName("Engine") &&
 				pair.key != StringName("Input") && pair.key != StringName("InputMap") &&
 				pair.key != StringName("PhysicsServer3D") && pair.key != StringName("ProjectSettings") &&
-				pair.key != StringName("AudioServer") && pair.key != StringName("ClassDB")) {
+				pair.key != StringName("AudioServer") && pair.key != StringName("ClassDB") &&
+				pair.key != StringName("Performance") && pair.key != StringName("Time") &&
+				pair.key != StringName("Geometry2D") && pair.key != StringName("Geometry3D") &&
+				pair.key != StringName("Marshalls") && pair.key != StringName("ThemeDB") &&
+				pair.key != StringName("TextServerManager")) {
 			continue;
 		}
 		if (p_schedule_cleanup(&abi, p_context, binding_cleanup,
@@ -581,13 +600,14 @@ void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {
 			}
 		}
         if (scene_bindings) {
-            for (const auto &entry : scene_bindings->audio_effect_pins) {
-                if (!entry.binding_scheduled) std::abort();
-                free_guarded_binding(native_variant_id(entry.pin));
-            }
-            // RS/physics/audio singleton wrappers belong to the existing
-            // engine_singletons cleanup below; the four scene wrappers do not.
-            for (const size_t index : {size_t(2), size_t(1), size_t(3), size_t(0)}) {
+            // The original USER audio mutation owner must already have returned
+            // every audio binding/pin in its own action. Do not repeat it here.
+            if (scene_bindings->audio_effect_pins.size()) std::abort();
+            // The real World owns its direct-space native child. Release only
+            // this library's child binding while world_pin still keeps that
+            // parent alive, then release the parent/other scene wrappers.
+            // RS/physics/audio singleton wrappers are cleaned up below.
+            for (const size_t index : {size_t(7), size_t(2), size_t(1), size_t(3), size_t(0)}) {
                 if (!scene_bindings->ids[index]) continue;
                 if (!scene_bindings->binding_scheduled[index]) std::abort();
                 free_guarded_binding(scene_bindings->ids[index]);
