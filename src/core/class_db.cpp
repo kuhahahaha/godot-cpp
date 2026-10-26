@@ -39,6 +39,8 @@
 #include <godot_cpp/core/guarded_scene_tree.hpp>
 #include <cstdlib>
 #include <cstdio>
+#include <array>
+#include <optional>
 
 namespace godot {
 
@@ -48,15 +50,19 @@ LocalVector<StringName> ClassDB::class_register_order;
 AHashMap<StringName, Object *> ClassDB::engine_singletons;
 std::mutex ClassDB::engine_singletons_mutex;
 // SceneTree is owned by the engine main loop, outside engine_singletons.
-struct GuardedSceneBindings {
-	uint64_t tree_id;
-	uint64_t window_id;
-	Variant world_pin;
-	uint64_t world_id;
-	uint64_t main_device_id;
-	LocalVector<Variant> audio_effect_pins;
+struct GuardedAudioEffectPin {
+    Variant pin;
+    bool binding_scheduled = false;
 };
-static GuardedSceneBindings *scene_bindings = nullptr;
+struct GuardedSceneBindings {
+    std::array<uint64_t, 7> ids{};
+    std::array<bool, 7> binding_scheduled{};
+    Variant world_pin;
+    LocalVector<GuardedAudioEffectPin> audio_effect_pins;
+};
+// Fixed per-binding storage: recording the first materialized pair allocates no
+// ledger object after that pair exists. Actual Ref pins stay until BINDING.
+static std::optional<GuardedSceneBindings> scene_bindings;
 
 static uint64_t native_variant_id(Variant object) {
 	return object.get_type() == Variant::OBJECT && object != Variant() ? uint64_t(object.call("get_instance_id")) : 0;
@@ -443,52 +449,68 @@ void ClassDB::initialize(GDExtensionInitializationLevel p_level) {
 	}
 }
 
-void internal::set_guarded_scene_tree_binding(Object *tree, Object *window, Object *world, Object *main_device) {
-	if (!tree || !window || !world || !main_device || scene_bindings) {
-		std::abort();
-	}
-	scene_bindings = new GuardedSceneBindings{ tree->get_instance_id(), window->get_instance_id(), Variant(world),
-		world->get_instance_id(), main_device->get_instance_id(), {} };
+void internal::schedule_guarded_ready_object(Object *object, uint32_t phase,
+        const DeviceExitApi &api, GDExtensionDeviceExitSceneReadyContextRef ready) {
+    if (!object) std::abort();
+    const uint64_t id = object->get_instance_id();
+    const GDExtensionDeviceExitAbi abi{1, sizeof(GDExtensionDeviceExitAbi), 0};
+    const auto error = api.scene_ready_schedule_object_cleanup(&abi, ready, phase, id);
+    if (error) api.abort_unscheduled_scene_ready_pair(ready, error, id);
 }
 
-void internal::retain_guarded_audio_effect_binding(Object *effect) {
-	if (!scene_bindings || !effect) {
-		std::abort();
-	}
-	const uint64_t id = effect->get_instance_id();
-	for (const Variant &pin : scene_bindings->audio_effect_pins) {
-		if (native_variant_id(pin) == id) {
-			return; // Same native effect may occupy multiple bus slots.
-		}
-	}
-	scene_bindings->audio_effect_pins.push_back(Variant(effect));
+void internal::retain_guarded_scene_binding(Object *object, GuardedSceneBinding role,
+        const DeviceExitApi &api, GDExtensionDeviceExitSceneReadyContextRef ready) {
+    if (!object) std::abort();
+    if (!scene_bindings) scene_bindings.emplace();
+    const auto index = static_cast<size_t>(role);
+    const uint64_t id = object->get_instance_id();
+    if (scene_bindings->ids[index]) {
+        if (scene_bindings->ids[index] != id || !scene_bindings->binding_scheduled[index]) std::abort();
+        return;
+    }
+    scene_bindings->ids[index] = id;
+    if (role == GuardedSceneBinding::World) scene_bindings->world_pin = Variant(object);
+    schedule_guarded_ready_object(object, 1, api, ready);
+    scene_bindings->binding_scheduled[index] = true;
+}
+
+void internal::retain_guarded_audio_effect_binding(Object *effect, const DeviceExitApi &api,
+        GDExtensionDeviceExitSceneReadyContextRef ready) {
+    if (!scene_bindings || !effect) std::abort();
+    const uint64_t id = effect->get_instance_id();
+    for (const auto &entry : scene_bindings->audio_effect_pins) {
+        if (native_variant_id(entry.pin) == id) return;
+    }
+    // Capture the actual pin before assigning all existing holders of this
+    // object to BINDING, then schedule before observing the next effect.
+    scene_bindings->audio_effect_pins.push_back({Variant(effect), false});
+    schedule_guarded_ready_object(effect, 1, api, ready);
+    scene_bindings->audio_effect_pins[scene_bindings->audio_effect_pins.size() - 1].binding_scheduled = true;
 }
 
 bool internal::guarded_scene_owners_unchanged() {
-	if (!scene_bindings) {
-		return false;
-	}
-	Variant tree = Engine::get_singleton()->call("get_main_loop");
-	if (native_variant_id(tree) != scene_bindings->tree_id ||
-			!gdextension_interface::object_get_instance_from_id(scene_bindings->tree_id)) {
-		return false;
-	}
-	Variant root = tree.call("get_root");
-	const auto root_id = native_variant_id(root);
-	if (root_id != scene_bindings->window_id) {
-		std::fprintf(stderr, "[ANGE] guarded root owner changed\n");
-		return false;
-	}
-	// The original Viewport observes its Ref directly and returns a primitive.
-	// A Ref-return getter here would try to enter a fresh reference cohort.
-	const auto world_id = uint64_t(root.call("get_world_3d_instance_id"));
-	if (world_id != scene_bindings->world_id) {
-		std::fprintf(stderr, "[ANGE] guarded scene owner changed root=%llu/%llu world=%llu/%llu\n",
-				(unsigned long long)root_id, (unsigned long long)scene_bindings->window_id,
-				(unsigned long long)world_id, (unsigned long long)scene_bindings->world_id);
-		return false;
-	}
-	return true;
+    // Pending/unsupported-before-effects has no late identity to compare.
+    if (!scene_bindings) return true;
+    const auto &ids = scene_bindings->ids;
+    for (const auto &entry : {std::pair<size_t, const char*>{4, "RenderingServer"},
+            {5, "PhysicsServer3D"}, {6, "AudioServer"}}) {
+        if (!ids[entry.first]) continue;
+        const StringName name(entry.second);
+        auto *native = gdextension_interface::global_get_singleton(name._native_ptr());
+        if (!native || gdextension_interface::object_get_instance_id(native) != ids[entry.first]) return false;
+    }
+    if (ids[3]) {
+        Variant server = Engine::get_singleton()->call("get_singleton", StringName("RenderingServer"));
+        if (native_variant_id(server.call("get_rendering_device")) != ids[3]) return false;
+    }
+    if (!ids[0]) return true;
+    Variant tree = Engine::get_singleton()->call("get_main_loop");
+    if (native_variant_id(tree) != ids[0] || !gdextension_interface::object_get_instance_from_id(ids[0])) return false;
+    if (!ids[1]) return true;
+    Variant root = tree.call("get_root");
+    if (native_variant_id(root) != ids[1]) return false;
+    if (ids[2] && uint64_t(root.call("get_world_3d_instance_id")) != ids[2]) return false;
+    return true;
 }
 
 void ClassDB::schedule_guarded_singleton_cleanup(
@@ -501,7 +523,6 @@ void ClassDB::schedule_guarded_singleton_cleanup(
 		std::abort();
 	}
 	std::lock_guard<std::mutex> lock(engine_singletons_mutex);
-	uint32_t scheduled = 0;
 	for (const KeyValue<StringName, Object *> &pair : engine_singletons) {
 		if (pair.key != StringName("ResourceLoader") && pair.key != StringName("OS") &&
 				pair.key != StringName("RenderingServer") && pair.key != StringName("Engine") &&
@@ -514,22 +535,8 @@ void ClassDB::schedule_guarded_singleton_cleanup(
 					pair.value->get_instance_id()) != 0) {
 			std::abort();
 		}
-		++scheduled;
 	}
-	if (!scene_bindings || scheduled != 10) {
-		std::abort();
-	}
-	for (uint64_t id : { scene_bindings->window_id, scene_bindings->world_id,
-				 scene_bindings->main_device_id, scene_bindings->tree_id }) {
-		if (p_schedule_cleanup(&abi, p_context, binding_cleanup, id) != 0) {
-			std::abort();
-		}
-	}
-	for (const Variant &pin : scene_bindings->audio_effect_pins) {
-		if (p_schedule_cleanup(&abi, p_context, binding_cleanup, native_variant_id(pin)) != 0) {
-			std::abort();
-		}
-	}
+
 }
 
 void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {
@@ -573,17 +580,20 @@ void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {
 				singleton_objects.push_back(pair.value);
 			}
 		}
-		if (scene_bindings) {
-			for (const Variant &pin : scene_bindings->audio_effect_pins) {
-				free_guarded_binding(native_variant_id(pin));
-			}
-			free_guarded_binding(scene_bindings->world_id);
-			free_guarded_binding(scene_bindings->window_id);
-			free_guarded_binding(scene_bindings->main_device_id);
-			free_guarded_binding(scene_bindings->tree_id);
-			delete scene_bindings;
-			scene_bindings = nullptr;
-		}
+        if (scene_bindings) {
+            for (const auto &entry : scene_bindings->audio_effect_pins) {
+                if (!entry.binding_scheduled) std::abort();
+                free_guarded_binding(native_variant_id(entry.pin));
+            }
+            // RS/physics/audio singleton wrappers belong to the existing
+            // engine_singletons cleanup below; the four scene wrappers do not.
+            for (const size_t index : {size_t(2), size_t(1), size_t(3), size_t(0)}) {
+                if (!scene_bindings->ids[index]) continue;
+                if (!scene_bindings->binding_scheduled[index]) std::abort();
+                free_guarded_binding(scene_bindings->ids[index]);
+            }
+            scene_bindings.reset();
+        }
 		for (const Object *i : singleton_objects) {
 			::godot::gdextension_interface::object_free_instance_binding((*i)._owner, ::godot::gdextension_interface::token);
 		}

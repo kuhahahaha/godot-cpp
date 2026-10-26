@@ -1,9 +1,30 @@
 #pragma once
 #include <gdextension_interface.h>
+#include <cstdlib>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace godot {
 // Exact generated reciprocal surface. Loading does not enroll a generation.
 struct DeviceExitApi {
+	[[noreturn]] void abort_unscheduled_scene_ready_pair(GDExtensionDeviceExitSceneReadyContextRef ready,
+			int32_t schedule_error, uint64_t object_id) const noexcept {
+		const GDExtensionDeviceExitAbi abi{1, sizeof(GDExtensionDeviceExitAbi), 0};
+		scene_ready_abort(&abi, ready, schedule_error,
+				GDEXTENSION_DEVICE_EXIT_SCENE_READY_ABORT_UNSCHEDULED_PAIR_V1, object_id);
+		// A returning/invalid core implementation cannot unwind an unscheduled pair.
+		static constexpr char marker[] = "SCENE_READY_ABORT_PROC_RETURN\n";
+#ifdef _WIN32
+		(void)_write(2, marker, sizeof(marker) - 1);
+#else
+		(void)write(2, marker, sizeof(marker) - 1);
+#endif
+		std::_Exit(86);
+	}
+
 	GDExtensionInterfaceDeviceExitRegisterGuardV1 register_guard = nullptr;
 	GDExtensionInterfaceDeviceExitBorrowGuardedLibraryV1 borrow_guarded_library = nullptr;
 	GDExtensionInterfaceDeviceExitBorrowInitializeLevelV1 borrow_initialize_level = nullptr;
