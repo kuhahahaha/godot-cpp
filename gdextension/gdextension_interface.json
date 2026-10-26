@@ -5397,6 +5397,130 @@
                     "value": 5
                 }
             ]
+        },
+        {
+            "name": "GDExtensionQualificationRtConfigV1",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "slot_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "max_request_bytes",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "max_result_bytes",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "max_segment_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "max_payload_bytes",
+                    "type": "uint64_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionQualificationRtRequestV1",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "kind",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "operation_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "payload_bytes",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "request_bytes",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "result_capacity",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "segment_capacity",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionQualificationRtRefV1",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "registry_instance",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "handle_serial",
+                    "type": "uint64_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionQualificationRtObservationV1",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "kind",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "state",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "operation_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "slot_generation",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "result_bytes",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "segment_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "call_result",
+                    "type": "GDExtensionDeviceSessionResultV1"
+                }
+            ]
         }
     ],
     "interface": [
@@ -13105,6 +13229,207 @@
                 "type": "GDExtensionDeviceSessionResultV1",
                 "description": [
                     "Original native Error/reason observation. A possible effect requires a retained original child/ticket, never an unowned bare error."
+                ]
+            }
+        },
+        {
+            "name": "device_session_qualification_rt_configure_v1",
+            "since": "4.7",
+            "description": [
+                "Original bridge fixed typed owner-to-main-RT transport; a returned call is not native completion or physical retirement."
+            ],
+            "arguments": [
+                {
+                    "name": "bridge",
+                    "type": "GDExtensionQualificationBridgeRefV1",
+                    "description": [
+                        "Bounded synchronous bridge value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "config",
+                    "type": "const GDExtensionQualificationRtConfigV1*",
+                    "description": [
+                        "Bounded synchronous config value or span; no caller pointer is retained."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original native Error and closed device-session reason; API call return is not GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_qualification_rt_reserve_v1",
+            "since": "4.7",
+            "description": [
+                "Original bridge fixed typed owner-to-main-RT transport; a returned call is not native completion or physical retirement."
+            ],
+            "arguments": [
+                {
+                    "name": "bridge",
+                    "type": "GDExtensionQualificationBridgeRefV1",
+                    "description": [
+                        "Bounded synchronous bridge value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "header",
+                    "type": "const GDExtensionQualificationRtRequestV1*",
+                    "description": [
+                        "Bounded synchronous header value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "request_pod",
+                    "type": "const void*",
+                    "description": [
+                        "Bounded synchronous request_pod value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "payload",
+                    "type": "const void*",
+                    "description": [
+                        "Bounded synchronous payload value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "out_ref",
+                    "type": "GDExtensionQualificationRtRefV1*",
+                    "description": [
+                        "Bounded synchronous out_ref value or span; no caller pointer is retained."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original native Error and closed device-session reason; API call return is not GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_qualification_rt_activate_v1",
+            "since": "4.7",
+            "description": [
+                "Original bridge fixed typed owner-to-main-RT transport; a returned call is not native completion or physical retirement."
+            ],
+            "arguments": [
+                {
+                    "name": "bridge",
+                    "type": "GDExtensionQualificationBridgeRefV1",
+                    "description": [
+                        "Bounded synchronous bridge value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "ref",
+                    "type": "GDExtensionQualificationRtRefV1",
+                    "description": [
+                        "Bounded synchronous ref value or span; no caller pointer is retained."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original native Error and closed device-session reason; API call return is not GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_qualification_rt_observe_v1",
+            "since": "4.7",
+            "description": [
+                "Original bridge fixed typed owner-to-main-RT transport; a returned call is not native completion or physical retirement."
+            ],
+            "arguments": [
+                {
+                    "name": "bridge",
+                    "type": "GDExtensionQualificationBridgeRefV1",
+                    "description": [
+                        "Bounded synchronous bridge value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "ref",
+                    "type": "GDExtensionQualificationRtRefV1",
+                    "description": [
+                        "Bounded synchronous ref value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "out_observation",
+                    "type": "GDExtensionQualificationRtObservationV1*",
+                    "description": [
+                        "Bounded synchronous out_observation value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "out_result",
+                    "type": "void*",
+                    "description": [
+                        "Bounded synchronous out_result value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "result_capacity",
+                    "type": "uint32_t",
+                    "description": [
+                        "Bounded synchronous result_capacity value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "out_segments",
+                    "type": "GDExtensionQualificationUploadSegmentV1*",
+                    "description": [
+                        "Bounded synchronous out_segments value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "segment_capacity",
+                    "type": "uint32_t",
+                    "description": [
+                        "Bounded synchronous segment_capacity value or span; no caller pointer is retained."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original native Error and closed device-session reason; API call return is not GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_qualification_rt_release_v1",
+            "since": "4.7",
+            "description": [
+                "Original bridge fixed typed owner-to-main-RT transport; a returned call is not native completion or physical retirement."
+            ],
+            "arguments": [
+                {
+                    "name": "bridge",
+                    "type": "GDExtensionQualificationBridgeRefV1",
+                    "description": [
+                        "Bounded synchronous bridge value or span; no caller pointer is retained."
+                    ]
+                },
+                {
+                    "name": "ref",
+                    "type": "GDExtensionQualificationRtRefV1",
+                    "description": [
+                        "Bounded synchronous ref value or span; no caller pointer is retained."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original native Error and closed device-session reason; API call return is not GPU completion."
                 ]
             }
         }
