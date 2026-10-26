@@ -44,6 +44,7 @@ struct DeviceExitApi {
 
 	// Opted-in Ready/qualification table; no copied pointer grants admission.
 	GDExtensionInterfaceDeviceExitRegisterSceneReadyV1 register_scene_ready = nullptr;
+	GDExtensionInterfaceDeviceExitRegisterSceneReadyV2 register_scene_ready_v2 = nullptr;
 	GDExtensionInterfaceDeviceExitSceneReadyScheduleObjectCleanupV1 scene_ready_schedule_object_cleanup = nullptr;
 	GDExtensionInterfaceDeviceSessionBindSceneReadyV1 bind_scene_ready = nullptr;
 	GDExtensionInterfaceDeviceExitSceneReadyAbortV1 scene_ready_abort = nullptr;
@@ -70,8 +71,8 @@ struct DeviceExitApi {
 	GDExtensionInterfaceDeviceSessionQualificationNativeUnitRetireReleaseV1 qualification_native_unit_retire_release = nullptr;
 
 	// Missing any entry leaves the existing table unchanged.
-	bool load(GDExtensionInterfaceGetProcAddress lookup, bool require_scene_ready = false, bool require_qualification = false) {
-		if (!lookup) return false;
+	bool load(GDExtensionInterfaceGetProcAddress lookup, bool require_scene_ready = false, bool require_qualification = false, bool require_scene_ready_v2 = false) {
+		if (!lookup || (require_scene_ready_v2 && !require_scene_ready)) return false;
 		DeviceExitApi candidate;
 		candidate.register_guard = (GDExtensionInterfaceDeviceExitRegisterGuardV1)lookup("device_exit_register_guard_v1");
 		if (!candidate.register_guard) return false;
@@ -114,6 +115,10 @@ struct DeviceExitApi {
 			if (!candidate.bind_scene_ready) return false;
 			candidate.scene_ready_abort = (GDExtensionInterfaceDeviceExitSceneReadyAbortV1)lookup("device_exit_scene_ready_abort_v1");
 			if (!candidate.scene_ready_abort) return false;
+		}
+		if (require_scene_ready_v2) {
+			candidate.register_scene_ready_v2 = (GDExtensionInterfaceDeviceExitRegisterSceneReadyV2)lookup("device_exit_register_scene_ready_v2");
+			if (!candidate.register_scene_ready_v2) return false;
 		}
 		if (require_qualification) {
 			candidate.bind_main_scene_ready = (GDExtensionInterfaceDeviceSessionBindMainSceneReadyV1)lookup("device_session_bind_main_scene_ready_v1");

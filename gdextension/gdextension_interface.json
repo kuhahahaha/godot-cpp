@@ -4104,6 +4104,139 @@
             ]
         },
         {
+            "name": "GDExtensionSceneInstallFeatureV2",
+            "kind": "enum",
+            "values": [
+                {
+                    "name": "GDEXTENSION_SCENE_INSTALL_BASE_V2",
+                    "value": 1
+                },
+                {
+                    "name": "GDEXTENSION_SCENE_INSTALL_RD_PAIR_V2",
+                    "value": 2
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionSceneInstallOmissionV2",
+            "kind": "enum",
+            "values": [
+                {
+                    "name": "GDEXTENSION_SCENE_INSTALL_OMISSION_NONE_V2",
+                    "value": 0
+                },
+                {
+                    "name": "GDEXTENSION_SCENE_INSTALL_OMISSION_NO_RD_PRESENT_V2",
+                    "value": 1
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionSceneInstallRequirementsV2",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "required_features",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "optional_features",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint64_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionSceneInstallPlanV2",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "library_generation",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "required_features",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "optional_features",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "selected_features",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "omitted_optional_features",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "omission_reason",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "tree_id",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "window_id",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "world_id",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "rendering_server_id",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "main_rd_id",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "main_rd_epoch",
+                    "type": "uint64_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionDeviceExitSceneReadyCallbackV2",
+            "kind": "function",
+            "arguments": [
+                {
+                    "name": "original_userdata",
+                    "type": "void*"
+                },
+                {
+                    "name": "original_ready",
+                    "type": "GDExtensionDeviceExitSceneReadyContextRef"
+                },
+                {
+                    "name": "synchronous_plan",
+                    "type": "const GDExtensionSceneInstallPlanV2*"
+                }
+            ],
+            "return_value": {
+                "type": "int32_t"
+            }
+        },
+        {
             "name": "GDExtensionDeviceExitSceneReadyCallbackV1",
             "kind": "function",
             "arguments": [
@@ -12169,6 +12302,49 @@
                 "type": "int32_t",
                 "description": [
                     "Original Godot Error observation; no inferred enrollment or completion."
+                ]
+            }
+        },
+        {
+            "name": "device_exit_register_scene_ready_v2",
+            "since": "4.7",
+            "description": [
+                "Register one original scene-ready transaction with fixed BaseScene/RDPair requirements. The original Registry selects and borrows a same-frame plan before callback; this does not issue a GPU capability. Guarded lookup only; v1 remains strict full installation."
+            ],
+            "arguments": [
+                {
+                    "name": "requirements",
+                    "type": "const GDExtensionSceneInstallRequirementsV2*",
+                    "description": [
+                        "requirements"
+                    ]
+                },
+                {
+                    "name": "original_scene_frame",
+                    "type": "GDExtensionDeviceExitInitializationLevelContextRef",
+                    "description": [
+                        "original_scene_frame"
+                    ]
+                },
+                {
+                    "name": "callback",
+                    "type": "GDExtensionDeviceExitSceneReadyCallbackV2",
+                    "description": [
+                        "callback"
+                    ]
+                },
+                {
+                    "name": "original_userdata",
+                    "type": "void*",
+                    "description": [
+                        "original_userdata"
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "int32_t",
+                "description": [
+                    "Original Godot Error; malformed requirements fail before any record mutation."
                 ]
             }
         },

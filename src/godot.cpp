@@ -42,6 +42,7 @@
 
 #include <stdio.h>
 #include <cstdlib>
+#include <type_traits>
 
 namespace godot {
 
@@ -119,11 +120,76 @@ std::thread::id GDExtensionBinding::binding_owner;
 thread_local GDExtensionBinding::InitData *GDExtensionBinding::active_guarded_user = nullptr;
 namespace {
 constexpr GDExtensionDeviceExitAbi exit_abi{1, sizeof(GDExtensionDeviceExitAbi), 0};
+#if defined(__cplusplus)
+#define SI2_ALIGNOF(T) alignof(T)
+#define SI2_ASSERT(E) static_assert((E), #E)
+#else
+#define SI2_ALIGNOF(T) _Alignof(T)
+#define SI2_ASSERT(E) _Static_assert((E), #E)
+#endif
+SI2_ASSERT(sizeof(uint32_t) == 4);
+SI2_ASSERT(sizeof(uint64_t) == 8);
+SI2_ASSERT(sizeof(GDExtensionDeviceExitAbi) == 16);
+/* Scalar alignof(uint64_t) may exceed record ABI alignment on i386. */
+SI2_ASSERT(offsetof(GDExtensionDeviceExitAbi, abi_version) == 0);
+SI2_ASSERT(offsetof(GDExtensionDeviceExitAbi, struct_size) == 4);
+SI2_ASSERT(offsetof(GDExtensionDeviceExitAbi, reserved) == 8);
+SI2_ASSERT(sizeof(GDExtensionSceneInstallRequirementsV2) == 32);
+SI2_ASSERT(SI2_ALIGNOF(GDExtensionSceneInstallRequirementsV2) == SI2_ALIGNOF(GDExtensionDeviceExitAbi));
+SI2_ASSERT(offsetof(GDExtensionSceneInstallRequirementsV2, abi) == 0);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallRequirementsV2, required_features) == 16);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallRequirementsV2, optional_features) == 20);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallRequirementsV2, reserved) == 24);
+SI2_ASSERT(sizeof(GDExtensionSceneInstallPlanV2) == 96);
+SI2_ASSERT(SI2_ALIGNOF(GDExtensionSceneInstallPlanV2) == SI2_ALIGNOF(GDExtensionDeviceExitAbi));
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, abi) == 0);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, library_generation) == 16);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, required_features) == 24);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, optional_features) == 28);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, selected_features) == 32);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, omitted_optional_features) == 36);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, omission_reason) == 40);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, reserved) == 44);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, tree_id) == 48);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, window_id) == 56);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, world_id) == 64);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, rendering_server_id) == 72);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, main_rd_id) == 80);
+SI2_ASSERT(offsetof(GDExtensionSceneInstallPlanV2, main_rd_epoch) == 88);
+#undef SI2_ASSERT
+#undef SI2_ALIGNOF
+
+static_assert(std::is_same<GDExtensionDeviceExitSceneReadyCallbackV2,
+    int32_t (*)(void *, GDExtensionDeviceExitSceneReadyContextRef, const GDExtensionSceneInstallPlanV2 *)>::value, "V2 callback signature");
+static_assert(std::is_same<GDExtensionInterfaceDeviceExitRegisterSceneReadyV2,
+    int32_t (*)(const GDExtensionSceneInstallRequirementsV2 *, GDExtensionDeviceExitInitializationLevelContextRef, GDExtensionDeviceExitSceneReadyCallbackV2, void *)>::value, "V2 proc signature");
+
+bool same_requirements(const GDExtensionSceneInstallRequirementsV2 &a, const GDExtensionSceneInstallRequirementsV2 &b) {
+    return a.abi.abi_version == b.abi.abi_version && a.abi.struct_size == b.abi.struct_size &&
+        a.abi.reserved == b.abi.reserved && a.required_features == b.required_features &&
+        a.optional_features == b.optional_features && a.reserved == b.reserved;
+}
+bool valid_requirements(const GDExtensionSceneInstallRequirementsV2 &r) {
+    return r.abi.abi_version == 1 && r.abi.struct_size == sizeof(r) && !r.abi.reserved && !r.reserved &&
+        ((r.required_features == 1 && r.optional_features == 2) ||
+         (r.required_features == 3 && r.optional_features == 0));
+}
+bool valid_plan(const GDExtensionSceneInstallPlanV2 &p, const GDExtensionSceneInstallRequirementsV2 &r) {
+    if (p.abi.abi_version != 1 || p.abi.struct_size != sizeof(p) || p.abi.reserved || p.reserved ||
+        !p.library_generation || !p.tree_id || !p.window_id || !p.world_id || !p.rendering_server_id ||
+        p.required_features != r.required_features || p.optional_features != r.optional_features) return false;
+    if (p.selected_features == 3) return !p.omitted_optional_features && !p.omission_reason && p.main_rd_id && p.main_rd_epoch;
+    return p.selected_features == 1 && r.required_features == 1 && r.optional_features == 2 &&
+        p.omitted_optional_features == 2 && p.omission_reason == 1 && !p.main_rd_id && !p.main_rd_epoch;
+}
 bool frozen_configuration(const GDExtensionBinding::InitData &data) {
     if (data.owner_thread != std::this_thread::get_id() ||
         data.init_callback != data.frozen_initializer ||
         data.terminate_callback != data.frozen_terminator ||
         data.scene_ready_callback != data.frozen_scene_ready_callback ||
+        data.scene_ready_callback_v2 != data.frozen_scene_ready_callback_v2 ||
+        data.scene_ready_flavor != data.frozen_scene_ready_flavor ||
+        !same_requirements(data.scene_install_requirements_v2, data.frozen_scene_install_requirements_v2) ||
         data.main_rd_qualification_required != data.frozen_main_rd_qualification_required ||
         data.guard_configuration.entry_classes != data.frozen_entry_classes ||
         data.minimum_initialization_level != data.guard_configuration.expected_initialization.minimum_initialization_level) return false;
@@ -158,6 +224,20 @@ int32_t GDExtensionBinding::guarded_scene_ready(void *userdata, GDExtensionDevic
         !data->frozen_scene_ready_callback || active_guarded_user) std::abort();
     active_guarded_user = data;
     const auto error = data->frozen_scene_ready_callback(ready);
+    active_guarded_user = nullptr;
+    return error;
+}
+
+int32_t GDExtensionBinding::guarded_scene_ready_v2(void *userdata, GDExtensionDeviceExitSceneReadyContextRef ready,
+        const GDExtensionSceneInstallPlanV2 *plan) noexcept {
+    auto *data = static_cast<InitData *>(userdata);
+    if (!data || data != guarded_claimant || !frozen_configuration(*data) ||
+        data->frozen_scene_ready_flavor != InitData::SceneReadyFlavor::V2Declared ||
+        !data->frozen_scene_ready_callback_v2 || active_guarded_user) std::abort();
+    if (!plan || reinterpret_cast<uintptr_t>(plan) % alignof(GDExtensionSceneInstallPlanV2) ||
+        !valid_plan(*plan, data->frozen_scene_install_requirements_v2)) return ERR_INVALID_DATA;
+    active_guarded_user = data;
+    const auto error = data->frozen_scene_ready_callback_v2(ready, *plan);
     active_guarded_user = nullptr;
     return error;
 }
@@ -216,12 +296,20 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
         }
     } reservation{p_init_data, saved_library, saved_token, saved_lookup, saved_print_error, saved_version, saved_version_proc};
     const bool guarded = p_get_proc_address("device_exit_register_guard_v1") != nullptr;
-    const bool scene_ready = p_init_data->scene_ready_callback != nullptr;
+    const auto flavor = p_init_data->scene_ready_flavor;
+    const bool v2 = flavor == InitData::SceneReadyFlavor::V2Declared;
+    const bool scene_ready = flavor == InitData::SceneReadyFlavor::V1Full || v2;
+    if (v2) {
+        if (!p_init_data->scene_ready_callback_v2 || p_init_data->scene_ready_callback ||
+            !valid_requirements(p_init_data->scene_install_requirements_v2) ||
+            (p_init_data->main_rd_qualification_required && p_init_data->scene_install_requirements_v2.required_features != 3)) return false;
+    } else if (p_init_data->scene_ready_callback_v2 ||
+        ((flavor == InitData::SceneReadyFlavor::V1Full) != (p_init_data->scene_ready_callback != nullptr))) return false;
     if ((scene_ready || p_init_data->main_rd_qualification_required) &&
         (!guarded || !scene_ready || p_init_data->minimum_initialization_level > GDEXTENSION_INITIALIZATION_SCENE)) return false;
     if (guarded && (legacy_used || !p_init_data->guard_configured)) return false;
     DeviceExitApi candidate_api;
-    if (guarded && !candidate_api.load(p_get_proc_address, scene_ready, p_init_data->main_rd_qualification_required)) return false;
+    if (guarded && !candidate_api.load(p_get_proc_address, scene_ready, p_init_data->main_rd_qualification_required, v2)) return false;
     auto enroll = [&]() {
         r_initialization->initialize = initialize_level;
         r_initialization->deinitialize = deinitialize_level;
@@ -240,6 +328,9 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
             p_init_data->frozen_initializer = p_init_data->init_callback;
             p_init_data->frozen_terminator = p_init_data->terminate_callback;
             p_init_data->frozen_scene_ready_callback = p_init_data->scene_ready_callback;
+            p_init_data->frozen_scene_ready_callback_v2 = p_init_data->scene_ready_callback_v2;
+            p_init_data->frozen_scene_ready_flavor = flavor;
+            p_init_data->frozen_scene_install_requirements_v2 = p_init_data->scene_install_requirements_v2;
             p_init_data->frozen_main_rd_qualification_required = p_init_data->main_rd_qualification_required;
 #if GODOT_VERSION_MINOR >= 5
             p_init_data->frozen_main_loop_callbacks = p_init_data->main_loop_callbacks;
@@ -371,9 +462,10 @@ void GDExtensionBinding::initialize_level(void *p_userdata, GDExtensionInitializ
 					init_data->exit_api.borrow_level_cleanup,
 					init_data->exit_api.schedule_object_cleanup, context);
 		}
-        if (p_level == GDEXTENSION_INITIALIZATION_SCENE && init_data->frozen_scene_ready_callback) {
-            const auto error = init_data->exit_api.register_scene_ready(
-                &exit_abi, context, guarded_scene_ready, init_data);
+        if (p_level == GDEXTENSION_INITIALIZATION_SCENE && init_data->frozen_scene_ready_flavor != InitData::SceneReadyFlavor::None) {
+            const auto error = init_data->frozen_scene_ready_flavor == InitData::SceneReadyFlavor::V2Declared ?
+                init_data->exit_api.register_scene_ready_v2(&init_data->frozen_scene_install_requirements_v2, context, guarded_scene_ready_v2, init_data) :
+                init_data->exit_api.register_scene_ready(&exit_abi, context, guarded_scene_ready, init_data);
             if (error) { init_data->exit_api.terminate_initialize_blocked(context, error); std::abort(); }
         }
         const auto error = init_data->exit_api.after_binding_initialize(&exit_abi, context);
@@ -465,8 +557,17 @@ void GDExtensionBinding::InitObject::register_terminator(Callback p_terminate) c
 }
 
 void GDExtensionBinding::InitObject::register_scene_ready_callback(SceneReadyCallback callback) const {
-    if (init_data->state != InitData::State::NEW) std::abort();
+    if (init_data->state != InitData::State::NEW || init_data->scene_ready_flavor == InitData::SceneReadyFlavor::V2Declared) std::abort();
     init_data->scene_ready_callback = callback;
+    init_data->scene_ready_flavor = callback ? InitData::SceneReadyFlavor::V1Full : InitData::SceneReadyFlavor::None;
+}
+
+void GDExtensionBinding::InitObject::register_scene_ready_callback_v2(SceneReadyCallbackV2 callback,
+        const GDExtensionSceneInstallRequirementsV2 &requirements) const {
+    if (init_data->state != InitData::State::NEW || init_data->scene_ready_flavor == InitData::SceneReadyFlavor::V1Full) std::abort();
+    init_data->scene_ready_callback_v2 = callback;
+    init_data->scene_install_requirements_v2 = requirements;
+    init_data->scene_ready_flavor = InitData::SceneReadyFlavor::V2Declared;
 }
 
 void GDExtensionBinding::InitObject::require_main_rd_qualification() const {

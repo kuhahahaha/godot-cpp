@@ -71,6 +71,7 @@ class GDExtensionBinding {
 public:
 	using Callback = void (*)(ModuleInitializationLevel p_level);
 	using SceneReadyCallback = int32_t (*)(GDExtensionDeviceExitSceneReadyContextRef ready);
+	using SceneReadyCallbackV2 = int32_t (*)(GDExtensionDeviceExitSceneReadyContextRef, const GDExtensionSceneInstallPlanV2 &);
 
 	struct InitData {
 		enum class State { NEW, PENDING, ENROLLED, FAILED };
@@ -85,6 +86,13 @@ public:
 		Callback frozen_terminator = nullptr;
 		SceneReadyCallback scene_ready_callback = nullptr;
 		SceneReadyCallback frozen_scene_ready_callback = nullptr;
+		enum class SceneReadyFlavor { None, V1Full, V2Declared };
+		SceneReadyFlavor scene_ready_flavor = SceneReadyFlavor::None;
+		SceneReadyFlavor frozen_scene_ready_flavor = SceneReadyFlavor::None;
+		SceneReadyCallbackV2 scene_ready_callback_v2 = nullptr;
+		SceneReadyCallbackV2 frozen_scene_ready_callback_v2 = nullptr;
+		GDExtensionSceneInstallRequirementsV2 scene_install_requirements_v2 = {};
+		GDExtensionSceneInstallRequirementsV2 frozen_scene_install_requirements_v2 = {};
 		bool main_rd_qualification_required = false;
 		bool frozen_main_rd_qualification_required = false;
 		uint64_t frozen_entry_classes = 0;
@@ -123,6 +131,7 @@ public:
 	static void guarded_initialize_user(void *, GDExtensionInitializationLevel);
 	static void guarded_terminate_user(void *, GDExtensionInitializationLevel);
 	static int32_t guarded_scene_ready(void *, GDExtensionDeviceExitSceneReadyContextRef) noexcept;
+	static int32_t guarded_scene_ready_v2(void *, GDExtensionDeviceExitSceneReadyContextRef, const GDExtensionSceneInstallPlanV2 *) noexcept;
 	static GDExtensionBool init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization);
 
 public:
@@ -141,6 +150,7 @@ public:
 		void register_initializer(Callback p_init) const;
 		void register_terminator(Callback p_init) const;
 		void register_scene_ready_callback(SceneReadyCallback p_callback) const;
+		void register_scene_ready_callback_v2(SceneReadyCallbackV2, const GDExtensionSceneInstallRequirementsV2 &) const;
 		void require_main_rd_qualification() const;
 		void set_minimum_library_initialization_level(ModuleInitializationLevel p_level) const;
 		// Caller supplies audited census/services and its original preflight only.
