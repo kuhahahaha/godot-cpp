@@ -308,6 +308,12 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
     if ((scene_ready || p_init_data->main_rd_qualification_required) &&
         (!guarded || !scene_ready || p_init_data->minimum_initialization_level > GDEXTENSION_INITIALIZATION_SCENE)) return false;
     if (guarded && (legacy_used || !p_init_data->guard_configured)) return false;
+#if GODOT_VERSION_MINOR >= 5
+    // A callback must use the original explicitly declared main-loop entry class.
+    // Refuse before register_guard or publishing any initialization callbacks.
+    if (guarded && p_init_data->has_main_loop_callbacks() &&
+        !(p_init_data->guard_configuration.entry_classes & (uint64_t(1) << 1))) return false;
+#endif
     DeviceExitApi candidate_api;
     if (guarded && !candidate_api.load(p_get_proc_address, scene_ready, p_init_data->main_rd_qualification_required, v2)) return false;
     auto enroll = [&]() {
