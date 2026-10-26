@@ -21,5 +21,7 @@ void retain_guarded_audio_effect_binding(Object *, const DeviceExitApi &,
 // USER acknowledgement. The later BINDING phase must observe an empty cohort.
 void release_guarded_audio_effect_bindings();
 bool guarded_scene_owners_unchanged();
+// Observe current native owners without minting their SDK object bindings.
+bool guarded_scene_plan_matches(const GDExtensionSceneInstallPlanV2 &) noexcept;
 } //namespace internal
 } //namespace godot

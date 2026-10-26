@@ -503,6 +503,24 @@ void internal::release_guarded_audio_effect_bindings() {
     while (pins.size()) pins.resize(pins.size()-1);
 }
 
+bool internal::guarded_scene_plan_matches(const GDExtensionSceneInstallPlanV2 &plan) noexcept {
+    // Engine is an original early SCENE binding. Variant calls keep native
+    // observations local and do not create the late object's SDK binding.
+    const StringName server_name("RenderingServer");
+    auto *server_native = gdextension_interface::global_get_singleton(server_name._native_ptr());
+    if (!server_native || gdextension_interface::object_get_instance_id(server_native) != plan.rendering_server_id) return false;
+    Variant tree = Engine::get_singleton()->call("get_main_loop");
+    if (native_variant_id(tree) != plan.tree_id || !gdextension_interface::object_get_instance_from_id(plan.tree_id)) return false;
+    Variant root = tree.call("get_root");
+    if (native_variant_id(root) != plan.window_id || uint64_t(root.call("get_world_3d_instance_id")) != plan.world_id) return false;
+    if (plan.selected_features & GDEXTENSION_SCENE_INSTALL_RD_PAIR_V2) {
+        Variant server = Engine::get_singleton()->call("get_singleton", server_name);
+        if (native_variant_id(server.call("get_rendering_device")) != plan.main_rd_id) return false;
+    }
+    // Epoch and the live native tuple remain D's original same-frame gates.
+    return true;
+}
+
 bool internal::guarded_scene_owners_unchanged() {
     // Pending/unsupported-before-effects has no late identity to compare.
     if (!scene_bindings) return true;
