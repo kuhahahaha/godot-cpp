@@ -127,7 +127,7 @@ public:
 	static InitData *guarded_claimant;
 	static bool legacy_used;
 	static std::thread::id binding_owner;
-	static thread_local InitData *active_guarded_user;
+	static InitData *&active_guarded_user();
 	static void guarded_initialize_user(void *, GDExtensionInitializationLevel);
 	static void guarded_terminate_user(void *, GDExtensionInitializationLevel);
 	static int32_t guarded_scene_ready(void *, GDExtensionDeviceExitSceneReadyContextRef) noexcept;

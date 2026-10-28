@@ -308,7 +308,7 @@ void ClassDB::_register_class(bool p_virtual, bool p_exposed, bool p_runtime) {
 	// Each guarded enrollment owns a fresh ClassInfo, even when the loader
 	// retains this DSO's static GDCLASS initialized flag after a real unload.
 	// Extension parents have already been registered before their children.
-	if (GDExtensionBinding::active_guarded_user) {
+	if (GDExtensionBinding::active_guarded_user()) {
 		T::_bind_methods();
 		using Parent = typename T::parent_type;
 		Parent::template register_virtuals<T, Parent>();
