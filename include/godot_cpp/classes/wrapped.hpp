@@ -39,7 +39,7 @@
 
 #include <godot_cpp/godot.hpp>
 
-#if defined(MACOS_ENABLED) && defined(HOT_RELOAD_ENABLED)
+#if defined(MACOS_ENABLED)
 #include <map>
 #include <mutex>
 #include <thread>
@@ -71,7 +71,7 @@ class Wrapped {
 #endif
 	};
 
-#if defined(MACOS_ENABLED) && defined(HOT_RELOAD_ENABLED)
+#if defined(MACOS_ENABLED)
 	// On macOS, `thread_local` storage keeps the library from being unloaded,
 	// which breaks hot-reload. Instead we keep each thread's `ConstructInfo` in a
 	// map keyed by thread id.

@@ -532,10 +532,8 @@ void GDExtensionBinding::deinitialize_level(void *p_userdata, GDExtensionInitial
     if (guarded) {
         const auto error = init_data->exit_api.after_binding_deinit(&exit_abi, context);
         if (error) fatal(error);
-        // The original minimum-level USER/BINDING actions have returned and
-        // core accepted their retirement. A later real load receives a fresh
-        // InitData and generation; never carry this retired claimant into it.
-        if (p_level == init_data->minimum_initialization_level) guarded_claimant = nullptr;
+        // Acknowledged deinit does not prove the OS unloaded this image.
+        // Keep the claimant sticky: only a fresh image can enroll again.
     }
 
 }
