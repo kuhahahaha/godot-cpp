@@ -1,3 +1,4 @@
+from collections import namedtuple
 import os
 import platform
 import sys
@@ -566,6 +567,9 @@ def _get_api_file(extension_dir, api_version, custom_extension_dir):
     return path
 
 
+SelectedBuildInputs = namedtuple("SelectedBuildInputs", "schema api_node interface_node archive_node")
+
+
 def _godot_cpp(env):
     extension_dir = normalize_path(env.get("gdextension_dir", default=env.Dir("gdextension").srcnode().abspath), env)
 
@@ -620,5 +624,11 @@ def _godot_cpp(env):
 
         env.Default(*default_args)
 
-    env.AppendUnique(LIBS=[env.File("bin/%s" % library_name)])
+    archive_node = env.File("bin/%s" % library_name)
+    env.AppendUnique(LIBS=[archive_node])
+    if env.Flatten(env["LIBS"]).count(archive_node) != 1:
+        raise UserError("Selected godot-cpp archive must occur exactly once in LIBS")
+    env["GODOT_CPP_SELECTED_BUILD_INPUTS"] = SelectedBuildInputs(
+        1, env.File(api_file), env.File(os.path.join(extension_dir, "gdextension_interface.json")), archive_node
+    )
     return library
