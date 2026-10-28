@@ -202,8 +202,26 @@ bool valid_plan(const GDExtensionSceneInstallPlanV2 &p, const GDExtensionSceneIn
     return p.selected_features == 1 && r.required_features == 1 && r.optional_features == 2 &&
         p.omitted_optional_features == 2 && p.omission_reason == 1 && !p.main_rd_id && !p.main_rd_epoch;
 }
+template <typename T> bool empty_ref(T value) {
+    return !value.registry_instance && !value.handle_serial;
+}
+template <typename T> bool full_ref(T value) {
+    return value.registry_instance && value.handle_serial;
+}
+template <typename T> bool same_ref(T a, T b) {
+    return a.registry_instance == b.registry_instance && a.handle_serial == b.handle_serial;
+}
+bool coherent_qualification_hold(const GDExtensionBinding::InitData &data) {
+    using State = GDExtensionBinding::InitData::QualificationCodeHoldState;
+    switch (data.qualification_code_hold_state) {
+        case State::Unissued: return empty_ref(data.qualification_code_hold) && empty_ref(data.issued_qualification_code_hold);
+        case State::Live: return full_ref(data.qualification_code_hold) && same_ref(data.qualification_code_hold, data.issued_qualification_code_hold);
+        case State::ReturnAccepted: return empty_ref(data.qualification_code_hold) && full_ref(data.issued_qualification_code_hold);
+    }
+    return false;
+}
 bool frozen_configuration(const GDExtensionBinding::InitData &data) {
-    if (data.owner_thread != std::this_thread::get_id() ||
+    if (!coherent_qualification_hold(data) || data.owner_thread != std::this_thread::get_id() ||
         data.init_callback != data.frozen_initializer ||
         data.terminate_callback != data.frozen_terminator ||
         data.scene_ready_callback != data.frozen_scene_ready_callback ||
@@ -241,9 +259,11 @@ void GDExtensionBinding::guarded_terminate_user(void *userdata, GDExtensionIniti
 int32_t GDExtensionBinding::guarded_scene_ready(void *userdata, GDExtensionDeviceExitSceneReadyContextRef ready) noexcept {
     auto *data = static_cast<InitData *>(userdata);
     if (!data || data != guarded_claimant || !frozen_configuration(*data) ||
-        !data->frozen_scene_ready_callback || active_guarded_user()) std::abort();
+        !data->frozen_scene_ready_callback || active_guarded_user() || !empty_ref(data->active_qualification_ready)) std::abort();
     active_guarded_user() = data;
+    data->active_qualification_ready = ready;
     const auto error = data->frozen_scene_ready_callback(ready);
+    data->active_qualification_ready = {};
     active_guarded_user() = nullptr;
     return error;
 }
@@ -253,13 +273,39 @@ int32_t GDExtensionBinding::guarded_scene_ready_v2(void *userdata, GDExtensionDe
     auto *data = static_cast<InitData *>(userdata);
     if (!data || data != guarded_claimant || !frozen_configuration(*data) ||
         data->frozen_scene_ready_flavor != InitData::SceneReadyFlavor::V2Declared ||
-        !data->frozen_scene_ready_callback_v2 || active_guarded_user()) std::abort();
+        !data->frozen_scene_ready_callback_v2 || active_guarded_user() || !empty_ref(data->active_qualification_ready)) std::abort();
     if (!plan || reinterpret_cast<uintptr_t>(plan) % alignof(GDExtensionSceneInstallPlanV2) ||
         !valid_plan(*plan, data->frozen_scene_install_requirements_v2)) return ERR_INVALID_DATA;
     active_guarded_user() = data;
+    data->active_qualification_ready = ready;
     const auto error = data->frozen_scene_ready_callback_v2(ready, *plan);
+    data->active_qualification_ready = {};
     active_guarded_user() = nullptr;
     return error;
+}
+
+int32_t GDExtensionBinding::borrow_qualification_code_hold(GDExtensionDeviceExitSceneReadyContextRef ready,
+        GDExtensionDeviceExitLibraryCodeHoldRef &empty_out) noexcept {
+    if (!empty_ref(empty_out)) return ERR_ALREADY_IN_USE;
+    auto *data = guarded_claimant;
+    if (!data) return ERR_UNAVAILABLE;
+    // Check the immutable owner before consulting thread-scoped active context.
+    if (binding_owner != std::this_thread::get_id() || data->owner_thread != std::this_thread::get_id()) return ERR_UNAUTHORIZED;
+    if (data->state != InitData::State::ENROLLED || !frozen_configuration(*data) ||
+        !full_ref(data->guard) || data->original_library != gdextension_interface::library ||
+        data->guard_configuration.expected_initialization.userdata != data ||
+        data->guard_configuration.expected_initialization.initialize != initialize_level ||
+        data->guard_configuration.expected_initialization.deinitialize != deinitialize_level) return ERR_INVALID_DATA;
+    // A Ready trampoline has already established its thread-context entry.
+    // Refuse outside that stack before a macOS map lookup could insert one.
+    if (!full_ref(data->active_qualification_ready) ||
+        data->qualification_code_hold_state != InitData::QualificationCodeHoldState::Live) return ERR_UNAVAILABLE;
+    auto *active = active_guarded_user();
+    if (active && active != data) return ERR_UNAUTHORIZED;
+    if (!active) return ERR_UNAVAILABLE;
+    if (!same_ref(ready, data->active_qualification_ready)) return ERR_INVALID_DATA;
+    empty_out = data->qualification_code_hold;
+    return OK;
 }
 
 GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization) {
@@ -328,6 +374,11 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
     if ((scene_ready || p_init_data->main_rd_qualification_required) &&
         (!guarded || !scene_ready || p_init_data->minimum_initialization_level > GDEXTENSION_INITIALIZATION_SCENE)) return false;
     if (guarded && (legacy_used || !p_init_data->guard_configured)) return false;
+    if (scene_ready && !(p_init_data->guard_configuration.binding_cleanup_bitmap &
+            (uint64_t(1) << GDEXTENSION_INITIALIZATION_SCENE))) return false;
+    if (!coherent_qualification_hold(*p_init_data) ||
+        p_init_data->qualification_code_hold_state != InitData::QualificationCodeHoldState::Unissued ||
+        !empty_ref(p_init_data->active_qualification_ready)) return false;
 #if GODOT_VERSION_MINOR >= 5
     // A callback must use the original explicitly declared main-loop entry class.
     // Refuse before register_guard or publishing any initialization callbacks.
@@ -453,6 +504,33 @@ void GDExtensionBinding::initialize_level(void *p_userdata, GDExtensionInitializ
             init_data->exit_api.terminate_initialize_blocked(context, error ? error : int32_t(ERR_INVALID_DATA));
             std::abort();
         }
+        if (p_level == GDEXTENSION_INITIALIZATION_SCENE &&
+                init_data->frozen_scene_ready_flavor != InitData::SceneReadyFlavor::None) {
+            auto fatal = [&](int32_t cause) {
+                init_data->exit_api.terminate_initialize_blocked(context, cause);
+                std::abort();
+            };
+            if (init_data->qualification_code_hold_state != InitData::QualificationCodeHoldState::Unissued ||
+                    !empty_ref(init_data->active_qualification_ready)) fatal(ERR_INVALID_DATA);
+            GDExtensionDeviceExitGuardedLibraryRef library{};
+            GDExtensionDeviceExitRegisteredCleanupRef cleanup{};
+            auto cause = init_data->exit_api.borrow_guarded_library(&exit_abi, init_data->original_library, &library);
+            if (cause) fatal(cause);
+            if (!full_ref(library)) fatal(ERR_INVALID_DATA);
+            cause = init_data->exit_api.borrow_level_cleanup(&exit_abi, context, 1, &cleanup);
+            if (cause) fatal(cause);
+            if (!full_ref(cleanup)) fatal(ERR_INVALID_DATA);
+            GDExtensionDeviceExitLibraryCodeHoldRef hold{};
+            cause = init_data->exit_api.acquire_code_hold(&exit_abi, library, cleanup, &hold);
+            // Preserve even a malformed failure prefix; the original blocked path cannot return.
+            if (!empty_ref(hold)) {
+                init_data->qualification_code_hold = hold;
+                init_data->issued_qualification_code_hold = hold;
+                init_data->qualification_code_hold_state = InitData::QualificationCodeHoldState::Live;
+            }
+            if (cause) fatal(cause);
+            if (!full_ref(hold)) fatal(ERR_INVALID_DATA);
+        }
         ClassDB::current_level = p_level;
         guarded_initialize_user(init_data, p_level);
     } else if (init_data && init_data->init_callback) {
@@ -524,12 +602,24 @@ void GDExtensionBinding::deinitialize_level(void *p_userdata, GDExtensionInitial
         init_data->terminate_callback(static_cast<ModuleInitializationLevel>(p_level));
     }
 
+    bool binding_returned = false;
 	level_initialized[p_level]--;
 	if (level_initialized[p_level] == 0) {
 		EditorPlugins::deinitialize(p_level);
 		ClassDB::deinitialize(p_level);
+        binding_returned = true;
 	}
     if (guarded) {
+        if (p_level == GDEXTENSION_INITIALIZATION_SCENE &&
+                init_data->frozen_scene_ready_flavor != InitData::SceneReadyFlavor::None) {
+            if (!binding_returned || !frozen_configuration(*init_data) ||
+                init_data->qualification_code_hold_state != InitData::QualificationCodeHoldState::Live ||
+                !empty_ref(init_data->active_qualification_ready)) fatal(ERR_INVALID_DATA);
+            const auto cause = init_data->exit_api.release_code_hold(&exit_abi, init_data->qualification_code_hold);
+            if (cause) fatal(cause);
+            init_data->qualification_code_hold = {};
+            init_data->qualification_code_hold_state = InitData::QualificationCodeHoldState::ReturnAccepted;
+        }
         const auto error = init_data->exit_api.after_binding_deinit(&exit_abi, context);
         if (error) fatal(error);
         // Acknowledged deinit does not prove the OS unloaded this image.

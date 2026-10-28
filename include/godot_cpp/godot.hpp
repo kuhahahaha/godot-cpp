@@ -93,6 +93,11 @@ public:
 		SceneReadyCallbackV2 frozen_scene_ready_callback_v2 = nullptr;
 		GDExtensionSceneInstallRequirementsV2 scene_install_requirements_v2 = {};
 		GDExtensionSceneInstallRequirementsV2 frozen_scene_install_requirements_v2 = {};
+        enum class QualificationCodeHoldState { Unissued, Live, ReturnAccepted };
+        GDExtensionDeviceExitLibraryCodeHoldRef qualification_code_hold = {};
+        GDExtensionDeviceExitLibraryCodeHoldRef issued_qualification_code_hold = {};
+        QualificationCodeHoldState qualification_code_hold_state = QualificationCodeHoldState::Unissued;
+        GDExtensionDeviceExitSceneReadyContextRef active_qualification_ready = {};
 		bool main_rd_qualification_required = false;
 		bool frozen_main_rd_qualification_required = false;
 		uint64_t frozen_entry_classes = 0;
@@ -135,6 +140,8 @@ public:
 	static GDExtensionBool init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, InitData *p_init_data, GDExtensionInitialization *r_initialization);
 
 public:
+    static int32_t borrow_qualification_code_hold(GDExtensionDeviceExitSceneReadyContextRef ready,
+            GDExtensionDeviceExitLibraryCodeHoldRef &empty_out) noexcept;
 	static void initialize_level(void *p_userdata, GDExtensionInitializationLevel p_level);
 	static void deinitialize_level(void *p_userdata, GDExtensionInitializationLevel p_level);
 
