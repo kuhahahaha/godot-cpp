@@ -587,6 +587,11 @@ def _godot_cpp(env):
             "make_interface_header.py",
         ],
     )
+    # Export the complete generated-file set to the parent SCons environment.
+    # Consumers outside this sub-build include generated variant/class headers
+    # directly; exposing the emitter outputs lets the parent attach an explicit
+    # dependency instead of racing those headers under -j builds.
+    env["GODOT_CPP_GENERATED_BINDINGS"] = tuple(bindings)
     # Forces bindings regeneration.
     if env["generate_bindings"]:
         env.AlwaysBuild(bindings)
