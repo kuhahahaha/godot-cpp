@@ -49,7 +49,6 @@ opts = Variables(customs, ARGUMENTS)
 cpp_tool = Tool("godotcpp", toolpath=[Dir("tools").srcnode().abspath])
 cpp_tool.options(opts, env)
 opts.Update(env)
-
 Help(opts.GenerateHelpText(env))
 
 # Detect and print a warning listing unknown SCons variables to ease troubleshooting.
@@ -66,5 +65,11 @@ if scons_cache_path is not None:
 
 cpp_tool.generate(env)
 library = env.GodotCPP()
+
+# The parent controlled adapter records the actual registered and validated
+# SDK options. This is a build-only projection, never a runtime identity.
+env["GODOT_CPP_VALIDATED_BUILD_OPTIONS"] = tuple(dict(
+    (option.key, env.get(option.key)) for option in opts.options).items())
+
 
 Return("env")
