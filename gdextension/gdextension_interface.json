@@ -11607,6 +11607,863 @@
                     "type": "uint64_t"
                 }
             ]
+        },
+        {
+            "name": "GDExtensionOutputConsumedSelectorV2",
+            "kind": "struct",
+            "description": [
+                "Version 2 correlation selector into the original request. It grants no source, view, native receipt or capacity. Core reads all frozen selection facts from that same original action."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "action_ordinal",
+                    "type": "uint64_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputConsumedProofRefV2",
+            "kind": "struct",
+            "description": [
+                "Version 2 exact locator for one original pre-reserved ViewCell and original request pin. Every field is revalidated against original owner state; the POD is neither a grant nor independent custody."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "registry_instance",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "request_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "borrow_control_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "action_ordinal",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "particles",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "generation",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "lease_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "view_cell_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "slot_index",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "view_cell_index",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "lease_token",
+                    "type": "GDExtensionOutputTokenV1"
+                },
+                {
+                    "name": "original_color_token",
+                    "type": "GDExtensionOutputTokenV1"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputConsumedProofV2",
+            "kind": "struct",
+            "description": [
+                "Version 2 immutable grouped projection of actual final native color consumption. Full CameraCapture, CameraData, original native read and host snapshots remain behind the retained original ViewCell. Previous host is the frozen slot transform and has no independently minted host token."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "ref",
+                    "type": "GDExtensionOutputConsumedProofRefV2"
+                },
+                {
+                    "name": "original_acquire",
+                    "type": "GDExtensionOutputAcquireInputV1"
+                },
+                {
+                    "name": "original_camera",
+                    "type": "GDExtensionProductionCameraSampleV1"
+                },
+                {
+                    "name": "current_host",
+                    "type": "GDExtensionProductionHostTransformV1"
+                },
+                {
+                    "name": "previous_host",
+                    "type": "GDExtensionProductionHostTransformV1"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputConsumedBorrowResultV2",
+            "kind": "struct",
+            "description": [
+                "Version 2 original paid OBSERVE projection. Fresh-zero this output before every call; a complete ABI2 header distinguishes a projection written by this call. Successful borrow remains RETURNED until exact read; every failed borrow projection, including ERR_BUSY, is already OWNER_CONSUMED. Native pin survives exact read until explicit paid return. Errors never imply GPU, source, RECORD or segment completion."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "result",
+                    "type": "GDExtensionDeviceSessionResultV1"
+                },
+                {
+                    "name": "report",
+                    "type": "GDExtensionProductionReportV2"
+                },
+                {
+                    "name": "proof",
+                    "type": "GDExtensionOutputConsumedProofV2"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionOutputPredecessorV2",
+            "kind": "struct",
+            "description": [
+                "Exact prior consumed proof plus one already accepted READ resource/use locator. Does not import a caller RID. The fixed paid OBSERVE retains the original view/pin on RT before normal output preparation may succeed. All uses of this source must remain READ; aligned previous output remains independently writable."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "proof",
+                    "type": "GDExtensionOutputConsumedProofRefV2"
+                },
+                {
+                    "name": "resource_slot",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "use_index",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionOutputPrepareV2",
+            "kind": "struct",
+            "description": [
+                "Versioned original preparation plus authenticated predecessor READ. Repeated calls service the same immutable fixed control; Busy performs no output append."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "prepare",
+                    "type": "GDExtensionProductionOutputPrepareV1"
+                },
+                {
+                    "name": "predecessor",
+                    "type": "GDExtensionProductionOutputPredecessorV2"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionOutputPlanV2",
+            "kind": "struct",
+            "description": [
+                "Versioned original Acquire/Finalize/Seal plan plus authenticated predecessor READ. It keeps existing writable role and guard binding semantics."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "plan",
+                    "type": "GDExtensionProductionOutputPlanV1"
+                },
+                {
+                    "name": "predecessor",
+                    "type": "GDExtensionProductionOutputPredecessorV2"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputMetadataSelectionRefV2",
+            "kind": "struct",
+            "description": [
+                "Locator into one original request OUTPUT_METADATA resource; no independent issuer, registry, native generation or authority. The original selection owner remains in its paid slab until its original RELEASE returns every retained prefix."
+            ],
+            "members": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1"
+                },
+                {
+                    "name": "resource_slot",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "resource_generation",
+                    "type": "uint64_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputMetadataSelectionQueryV2",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "mesh_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "material_count",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputMetadataSelectionRequirementsV2",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "physical_bytes",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "alignment",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "mesh_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "material_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputMetadataSelectionPrepareV2",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "metadata_resource_slot",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "meshes",
+                    "type": "GDExtensionOutputRidSpanV1"
+                },
+                {
+                    "name": "materials",
+                    "type": "GDExtensionOutputRidSpanV1"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputMetadataSelectionResultV2",
+            "kind": "struct",
+            "description": [
+                "A nonempty selection is returned even when acquisition fails after placement. The caller must close it and drive the same original request RELEASE; failure never discards an acquired native prefix."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "status",
+                    "type": "GDExtensionDeviceSessionResultV1"
+                },
+                {
+                    "name": "selection",
+                    "type": "GDExtensionOutputMetadataSelectionRefV2"
+                },
+                {
+                    "name": "retained_meshes",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "retained_materials",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputMetadataSelectionObservationV2",
+            "kind": "struct",
+            "description": [
+                "CPU native selection observation only, issued on the original RT under the SAME retained material/mesh selections. No GPU qualification, raster backing, physical surface hold, pipeline custody or readiness is issued. shader_observation_error must be OK before using shader feature fields."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "mesh",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "mesh_revision",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "native_surface",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "vertex_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "index_count",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "primitive",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "format",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "mesh_bounds",
+                    "type": "GDExtensionOutputBoundsV1"
+                },
+                {
+                    "name": "material",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "material_generation",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "shader_version",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "shader_observation_error",
+                    "type": "int32_t"
+                },
+                {
+                    "name": "needs_inverse",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "zero_displacement",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "material_recipe_rejections",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputCreateInputV4",
+            "kind": "struct",
+            "description": [
+                "Create using the same original early metadata selections. Validates original attachment, selected assets and native revisions before and after acquiring the original generation holds; old CreateV3 semantics remain unchanged."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "create",
+                    "type": "GDExtensionOutputCreateInputV3"
+                },
+                {
+                    "name": "selection",
+                    "type": "GDExtensionOutputMetadataSelectionRefV2"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputSceneQueryCommitV2",
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "connection",
+                    "type": "GDExtensionSceneOpaque32V1"
+                },
+                {
+                    "name": "transform[12]",
+                    "type": "double"
+                },
+                {
+                    "name": "local_envelope",
+                    "type": "GDExtensionOutputBoundsV1"
+                },
+                {
+                    "name": "world_query",
+                    "type": "GDExtensionOutputBoundsV1"
+                },
+                {
+                    "name": "bounds_revision",
+                    "type": "uint64_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputSceneQueryResultV2",
+            "kind": "struct",
+            "description": [
+                "Receipt from the actual atomic scene receiver commit; it does not claim paired scene sources are clean or GPU work completed."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "status",
+                    "type": "GDExtensionDeviceSessionResultV1"
+                },
+                {
+                    "name": "receiver",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "base",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "generation",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "bounds_revision",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "pose_revision",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "pair_revision",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "transform[12]",
+                    "type": "double"
+                },
+                {
+                    "name": "local_envelope",
+                    "type": "GDExtensionOutputBoundsV1"
+                },
+                {
+                    "name": "world_query",
+                    "type": "GDExtensionOutputBoundsV1"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputDeviceFactsV2",
+            "kind": "struct",
+            "description": [
+                "Original authenticated exported DeviceSessionKey and exact Output device descriptor. Canonical token is four LE64 words {registry_instance,device_epoch,session,0x3256454454554f47}. This is descriptor equality only, never authority or capability/profile digest; retain original session owner and transport unchanged."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "registry_instance",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "device_epoch",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "session",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "device_tag",
+                    "type": "GDExtensionOutputTokenV1"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputSelectionFactsInputV2",
+            "kind": "struct",
+            "description": [
+                "Explicit original selection observation: profile Instance192=1, Indexed144=2. requested_pass_mask uses sole Output wire flags opaque=1/depth=2/shadow=4/transparent=8/probe=16. Zero observes eligibility only; nonzero requires the entire mask without downgrade. No Early/Late conversion."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "profile",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "surface",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "requested_pass_mask",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputSelectionFactsV2",
+            "kind": "struct",
+            "description": [
+                "Grouped current CPU facts from the original retained SelectionV2 owner. Mesh observation is independently usable when pass_status is unavailable; read masks only when pass_status.native_error is OK. geometry_bounds is exact zero for Instance192, not generated Indexed envelope. eligible_pass_mask is native shader classification, selected_pass_mask is only explicit intent, neither grants GPU qualification, draw/window admission or completion. device is projected from this same original attachment device/session; compare to the pre-query exported original session facts before freezing Create."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "selection",
+                    "type": "GDExtensionOutputMetadataSelectionRefV2"
+                },
+                {
+                    "name": "device",
+                    "type": "GDExtensionOutputDeviceFactsV2"
+                },
+                {
+                    "name": "surface",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "profile",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "observation",
+                    "type": "GDExtensionOutputMetadataSelectionObservationV2"
+                },
+                {
+                    "name": "geometry_bounds",
+                    "type": "GDExtensionOutputBoundsV1"
+                },
+                {
+                    "name": "pass_status",
+                    "type": "GDExtensionDeviceSessionResultV1"
+                },
+                {
+                    "name": "eligible_pass_mask",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "selected_pass_mask",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionOutputPassMaskV2",
+            "kind": "enum",
+            "description": [
+                "Sole existing ExternalOutput wire bit assignment. These are explicit pass intents/CPU eligibility, never renderer internal enum values, Early/Late phase bits, GPU qualification or physical window authority."
+            ],
+            "values": [
+                {
+                    "name": "GDEXTENSION_OUTPUT_PASS_OPAQUE_V2",
+                    "value": 1
+                },
+                {
+                    "name": "GDEXTENSION_OUTPUT_PASS_DEPTH_V2",
+                    "value": 2
+                },
+                {
+                    "name": "GDEXTENSION_OUTPUT_PASS_SHADOW_V2",
+                    "value": 4
+                },
+                {
+                    "name": "GDEXTENSION_OUTPUT_PASS_TRANSPARENT_V2",
+                    "value": 8
+                },
+                {
+                    "name": "GDEXTENSION_OUTPUT_PASS_PROBE_V2",
+                    "value": 16
+                },
+                {
+                    "name": "GDEXTENSION_OUTPUT_PASS_KNOWN_MASK_V2",
+                    "value": 31
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionPreparedResultRefV2",
+            "kind": "struct",
+            "description": [
+                "Version 2 exact original request/control/action/canonical-range result selector. It neither schedules native work nor issues a physical window. The original action cell retains the typed result until exact read after original RECORD consume."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "registry_instance",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "request_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "control_serial",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "action_ordinal",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "canonical_begin",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "canonical_end",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "canonical_suboperation",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "source_recipe_substep",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionPreparedActionResultV2",
+            "kind": "struct",
+            "description": [
+                "Version 2 actual native prepared execution reply, inline in the same original paid action cell. output_kind 0=ordinary append, 1=Acquire, 2=FinalizeGuardCopy, 3=Seal. Inactive result variants are zero. Multiple original actions in one RECORD retain separate replies; no DSO receiver/reply flags or generation-return projection substitutes for this result."
+            ],
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "ref",
+                    "type": "GDExtensionProductionPreparedResultRefV2"
+                },
+                {
+                    "name": "action_kind",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "output_kind",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "result",
+                    "type": "GDExtensionDeviceSessionResultV1"
+                },
+                {
+                    "name": "append",
+                    "type": "GDExtensionProductionAppendV2"
+                },
+                {
+                    "name": "acquire",
+                    "type": "GDExtensionOutputAcquireResultV1"
+                },
+                {
+                    "name": "finalize",
+                    "type": "GDExtensionProductionOutputFinalizeResultV1"
+                },
+                {
+                    "name": "seal",
+                    "type": "GDExtensionOutputSealResultV1"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionRecordReportV3",
+            "description": [
+                "Exact-once original RECORD report plus publicly visible actual native service usage. record retains ABI2 and original result/segment facts. offered is the immutable original native stage budget; remaining subtracts cumulative original staged usage, never refills on another control. Used counters describe only this exact control, including failed actual camera completion, not GPU completion or owner application. Caller settles these receipts before another original control."
+            ],
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "record",
+                    "type": "GDExtensionProductionRecordReportV2"
+                },
+                {
+                    "name": "offered",
+                    "type": "GDExtensionProductionServiceBudgetV1"
+                },
+                {
+                    "name": "remaining",
+                    "type": "GDExtensionProductionServiceBudgetV1"
+                },
+                {
+                    "name": "controls_used",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "receipts_used",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "passes_used",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionCameraPayloadV1",
+            "description": [
+                "Explicit revision-1 camera-dependent original upload binding. Ordinals refer to already prepared same-request UPLOAD rows, before the Acquire anchor, with exact bytes view24=96, sort18=72, control3=12. UINT64_MAX means absent. Core fills retained original CPU payload only from the actual selected current CameraSample and retained Host immediately before first bound upload. No view/owner authority is issued by these labels."
+            ],
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "acquire_action_ordinal",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "view_upload_action_ordinal",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "sort_upload_action_ordinal",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "control_upload_action_ordinal",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "needs_inverse",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                }
+            ]
+        },
+        {
+            "name": "GDExtensionProductionNativeBatchItemV1",
+            "description": [
+                "Exact original native prepared result in actual execution order, with optional segment closed after that result. cursor 0 starts the stream only once after exact original RECORD consume; next_cursor 0 ends it. flags 1=result,2=segment. Reading does not apply or ACK. Bounded O(1) original-arena lookup."
+            ],
+            "kind": "struct",
+            "members": [
+                {
+                    "name": "abi",
+                    "type": "GDExtensionDeviceExitAbi"
+                },
+                {
+                    "name": "cursor",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "next_cursor",
+                    "type": "uint64_t"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32_t"
+                },
+                {
+                    "name": "result",
+                    "type": "GDExtensionProductionPreparedActionResultV2"
+                },
+                {
+                    "name": "segment",
+                    "type": "GDExtensionProductionSegmentV2"
+                }
+            ]
         }
     ],
     "interface": [
@@ -24683,6 +25540,798 @@
                     ]
                 }
             ]
+        },
+        {
+            "name": "device_session_output_consumed_borrow_v2",
+            "since": "4.7",
+            "description": [
+                "Drive or peek one original fixed OBSERVE control for an existing pre-reserved proof view. Borrow only succeeds for the original actual covering color/list-close receipt; no post-effect allocation or current-camera reacquisition. Changed selector refuses while in flight. A zero budget never schedules or admits."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "selector",
+                    "type": "const GDExtensionOutputConsumedSelectorV2*",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "budget",
+                    "type": "const GDExtensionProductionServiceBudgetV1*",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "out_result",
+                    "type": "GDExtensionOutputConsumedBorrowResultV2*",
+                    "description": [
+                        "Synchronous aligned nonaliasing output; no caller pointer survives. Fresh-zero before every call. A projection written by this call has abi_version 2, struct_size equal to sizeof(GDExtensionOutputConsumedBorrowResultV2), and reserved zero. Admission failure and outstanding-control ERR_BUSY leave it untouched."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "ERR_BUSY alone does not identify control disposition. PENDING, QUEUED or EXECUTING leaves output untouched; a RETURNED result writes an ABI2 projection, even for ERR_BUSY. Failed projections are already OWNER_CONSUMED; the next same-leaf call is a fresh turn. Successful borrow remains RETURNED and requires exact read using proof.ref.borrow_control_serial. Fresh-zero output every call and validate its complete ABI2 header. Use production_control_receipt_v1 with the retained expected original serial to verify state and result_valid before another accepted control can replace it; report.service_control_serial is not populated in this path. Outstanding original budget is immutable. No logical promotion, native completion or source acknowledgment is issued."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_consumed_read_v2",
+            "since": "4.7",
+            "description": [
+                "Exact main owner consume of the successful original RETURNED borrow result. Wrong ref preserves RETURNED and replay rejects. The original proof ViewCell remains strongly retained across this transition and cancel; the consumer must separately consume RECORD and ACK every segment before Pending promotion."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "expected",
+                    "type": "const GDExtensionOutputConsumedProofRefV2*",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "out_proof",
+                    "type": "GDExtensionOutputConsumedProofV2*",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Successful exact read copies the original proof and changes the original borrow control to OWNER_CONSUMED. ERR_BUSY leaves output untouched while that control is not RETURNED. Wrong ref preserves RETURNED; replay rejects. No logical promotion, native completion or source acknowledgment is issued."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_consumed_return_v2",
+            "since": "4.7",
+            "description": [
+                "Return only the exact consumed proof metadata edge through original paid OBSERVE. Requires the original successful exact read. Native uses, predecessor gather/source return, physical and code clocks remain independent. Retry this same leaf only while the original turn is outstanding; retrieving any returned cleanup projection consumes that turn, including ERR_BUSY."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "expected",
+                    "type": "const GDExtensionOutputConsumedProofRefV2*",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "budget",
+                    "type": "const GDExtensionProductionServiceBudgetV1*",
+                    "description": [
+                        "Synchronous aligned nonaliasing POD; no caller pointer survives. Output remains untouched on admission failure."
+                    ]
+                },
+                {
+                    "name": "out_report",
+                    "type": "GDExtensionProductionReportV2*",
+                    "description": [
+                        "Synchronous aligned nonaliasing output; no caller pointer survives. Fresh-zero before every call. A projection written by this call has abi_version 2, struct_size equal to sizeof(GDExtensionProductionReportV2), and reserved zero. Admission failure and outstanding-control ERR_BUSY leave it untouched."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "ERR_BUSY alone does not identify control disposition. PENDING, QUEUED or EXECUTING leaves output untouched; a RETURNED result writes an ABI2 report, even for ERR_BUSY, and is already OWNER_CONSUMED on return. The next same-leaf call is a fresh turn. Fresh-zero output every call and validate its complete ABI2 header. Use production_control_receipt_v1 with the retained expected original serial to verify state and result_valid before another accepted control can replace it; report.service_control_serial is not populated in this path. Outstanding original budget is immutable. No native completion or source acknowledgment is issued."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_consumed_prepare_v2",
+            "since": "4.7",
+            "description": [
+                "Opt in one original prefreeze output acquire action to V2 proof transport. This reserves no new capacity: original metadata demand must quote a persistent proof ViewCell plus every simultaneous renderer view and the corresponding original use cells. V1 actions remain unchanged. Original acquire requires at least two quoted ViewCells and normal pipeline borrower headroom; the actual first camera view reserves the proof before native consumer append."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Original request owner."
+                    ]
+                },
+                {
+                    "name": "selector",
+                    "type": "const GDExtensionOutputConsumedSelectorV2*",
+                    "description": [
+                        "Synchronous aligned selector naming the original acquire action before freeze."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original checked preparation result. No registry, native pin, receipt or capacity is created."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_prepare_output_v2",
+            "since": "4.7",
+            "description": [
+                "Versioned predecessor READ binding through the original paid fixed OBSERVE control; no inline native work on metadata thread. Requires a read consumed proof and exact accepted source locator."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Original request input."
+                    ]
+                },
+                {
+                    "name": "prepare",
+                    "type": "const GDExtensionProductionOutputPrepareV2*",
+                    "description": [
+                        "Original prepare input."
+                    ]
+                },
+                {
+                    "name": "budget",
+                    "type": "const GDExtensionProductionServiceBudgetV1*",
+                    "description": [
+                        "Original budget input."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original preparation status; success does not grant native acquisition or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_prepare_output_plan_v2",
+            "since": "4.7",
+            "description": [
+                "Versioned predecessor READ binding through the original paid fixed OBSERVE control; no inline native work on metadata thread. Requires a read consumed proof and exact accepted source locator."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Original request input."
+                    ]
+                },
+                {
+                    "name": "plan",
+                    "type": "const GDExtensionProductionOutputPlanV2*",
+                    "description": [
+                        "Original plan input."
+                    ]
+                },
+                {
+                    "name": "budget",
+                    "type": "const GDExtensionProductionServiceBudgetV1*",
+                    "description": [
+                        "Original budget input."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original preparation status; success does not grant native acquisition or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_metadata_selection_query_v2",
+            "since": "4.7",
+            "description": [
+                "Pure finite CPU slab sizing; no allocation or native selection occurs."
+            ],
+            "arguments": [
+                {
+                    "name": "input",
+                    "type": "const GDExtensionOutputMetadataSelectionQueryV2*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "out_requirements",
+                    "type": "GDExtensionOutputMetadataSelectionRequirementsV2*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Checked original status. Success never issues material qualification or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_metadata_selection_prepare_v2",
+            "since": "4.7",
+            "description": [
+                "Original protected RT RECORD only. Acquires CPU native selection leases in exactly one prequoted original OUTPUT_METADATA allocation. Persistent Host/Binding input/result custody must survive the asynchronous original RECORD. On partial failure the returned nonempty locator still owns its prefix until original RELEASE."
+            ],
+            "arguments": [
+                {
+                    "name": "physical_context",
+                    "type": "GDExtensionProductionPhysicalContextRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "input",
+                    "type": "const GDExtensionOutputMetadataSelectionPrepareV2*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "out_result",
+                    "type": "GDExtensionOutputMetadataSelectionResultV2*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Checked original status. Success never issues material qualification or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_metadata_selection_read_v2",
+            "since": "4.7",
+            "description": [
+                "Original RT only. Reads one flattened selected surface and its material from the same original live attachment/request/slab. Failure leaves output unchanged. Host/Binding returns this immutable observation to main through its original persistent query custody."
+            ],
+            "arguments": [
+                {
+                    "name": "attachment",
+                    "type": "GDExtensionProductionAttachmentRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "selection",
+                    "type": "GDExtensionOutputMetadataSelectionRefV2",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "surface",
+                    "type": "uint32_t",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "out_observation",
+                    "type": "GDExtensionOutputMetadataSelectionObservationV2*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Checked original status. Success never issues material qualification or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_metadata_selection_return_v2",
+            "since": "4.7",
+            "description": [
+                "Main or original RT metadata close request. Seals reads and CreateV4 immediately, then returns BUSY until the same original request RELEASE has checked and returned its material/mesh selection prefix and CPU slab under the original paid service budget. Repeated close is idempotent while that request remains live; after request reclaim the locator is stale."
+            ],
+            "arguments": [
+                {
+                    "name": "attachment",
+                    "type": "GDExtensionProductionAttachmentRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "selection",
+                    "type": "GDExtensionOutputMetadataSelectionRefV2",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Checked original status. Success never issues material qualification or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_create_v4",
+            "since": "4.7",
+            "description": [
+                "Original CreateV3 path plus checked early same-selection association. Result retains the ordinary generation close obligation even if a post-acquire mismatch is rejected."
+            ],
+            "arguments": [
+                {
+                    "name": "physical_context",
+                    "type": "GDExtensionProductionPhysicalContextRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "input",
+                    "type": "const GDExtensionOutputCreateInputV4*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "out_result",
+                    "type": "GDExtensionOutputCreateResultV1*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Checked original status. Success never issues material qualification or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_scene_query_commit_v2",
+            "since": "4.7",
+            "description": [
+                "Original protected RECORD only; joins the same attachment retained SceneConnectionRow and exact original receiver/base/generation root before atomic bounds/pose commit. Transform uses basis columns then origin, three doubles each."
+            ],
+            "arguments": [
+                {
+                    "name": "physical_context",
+                    "type": "GDExtensionProductionPhysicalContextRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "input",
+                    "type": "const GDExtensionOutputSceneQueryCommitV2*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                },
+                {
+                    "name": "out_result",
+                    "type": "GDExtensionOutputSceneQueryResultV2*",
+                    "description": [
+                        "Synchronous aligned DTO or original owner locator."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Checked original status. Success never issues material qualification or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_device_facts_v2",
+            "since": "4.7",
+            "description": [
+                "Original owner thread and existing exporting DeviceSession authorization only. Issues exact canonical descriptor from authenticated original Registry/DeviceSessionKey; no allocation, registration or capacity. Output untouched on error. Copy device_tag unchanged into original Create and retain original session; the token never substitutes for native device/backing validation."
+            ],
+            "arguments": [
+                {
+                    "name": "context",
+                    "type": "GDExtensionDeviceRegistryContextRef",
+                    "description": [
+                        "Original authenticated owner or synchronous aligned nonaliasing DTO."
+                    ]
+                },
+                {
+                    "name": "session",
+                    "type": "GDExtensionOriginalDeviceSessionRef",
+                    "description": [
+                        "Original authenticated owner or synchronous aligned nonaliasing DTO."
+                    ]
+                },
+                {
+                    "name": "out_facts",
+                    "type": "GDExtensionOutputDeviceFactsV2*",
+                    "description": [
+                        "Original authenticated owner or synchronous aligned nonaliasing DTO."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Native checked status; success only copies original device facts."
+                ]
+            }
+        },
+        {
+            "name": "device_session_output_selection_facts_v2",
+            "since": "4.7",
+            "description": [
+                "Original RT only, same attachment/request/SelectionV2 slab. Instance192 returns finite native mesh observation and exact zero geometry_bounds independently of shader readiness. Pass classification uses actual native compiled shader: opaque or transparent, depth/shadow when opaque or depth-in-alpha, probe; explicit requested mask must be wholly eligible. Check pass_status before masks. Zero requested mask observes eligibility only. Indexed144 explicitly returns ERR_UNAVAILABLE because no original generated-geometry envelope owner exists here; it does not block Instance192. Failure leaves output untouched. Original query custody must retain/transport the result to main, not dereference native objects there. Eligibility never authorizes Early/Late, physical pipeline/renderer window or material qualification."
+            ],
+            "arguments": [
+                {
+                    "name": "attachment",
+                    "type": "GDExtensionProductionAttachmentRefV1",
+                    "description": [
+                        "Original authenticated owner or synchronous aligned nonaliasing DTO."
+                    ]
+                },
+                {
+                    "name": "selection",
+                    "type": "GDExtensionOutputMetadataSelectionRefV2",
+                    "description": [
+                        "Original authenticated owner or synchronous aligned nonaliasing DTO."
+                    ]
+                },
+                {
+                    "name": "input",
+                    "type": "const GDExtensionOutputSelectionFactsInputV2*",
+                    "description": [
+                        "Original authenticated owner or synchronous aligned nonaliasing DTO."
+                    ]
+                },
+                {
+                    "name": "out_facts",
+                    "type": "GDExtensionOutputSelectionFactsV2*",
+                    "description": [
+                        "Original authenticated owner or synchronous aligned nonaliasing DTO."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Checked observation status. OK permits mesh observation; pass_status separately gates pass fields. Explicit unsupported intent is pass_status ERR_UNAVAILABLE with selected mask zero; never silent reduction."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_prepare_native_record_v2",
+            "since": "4.7",
+            "description": [
+                "Opt in the same original request to execute only its prepared/frozen actions through Core in an authenticated genuine native camera invocation. Must precede freeze. CQMT waits on the same queued control and does not run this facet outside that window. Existing Runtime preparation/resource/config owners remain required; no empty generation is synthesized."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned POD belonging to the same original owner; no caller pointer survives."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original checked result. No renderer window, resource/config issuer, source acknowledgment or logical application is created."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_prepared_result_read_v2",
+            "since": "4.7",
+            "description": [
+                "Exact once read of one original action result after its same original RECORD result was consumed. Request/control/action/canonicalrange/substep must all match. Wrong selector preserves result and output; replay refuses. Unread real replies block the next RECORD and final RELEASE but may be read after cancellation. ACK and source/physical/code return remain separate."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned POD belonging to the same original owner; no caller pointer survives."
+                    ]
+                },
+                {
+                    "name": "expected",
+                    "type": "const GDExtensionProductionPreparedResultRefV2*",
+                    "description": [
+                        "Synchronous aligned POD belonging to the same original owner; no caller pointer survives."
+                    ]
+                },
+                {
+                    "name": "out_result",
+                    "type": "GDExtensionProductionPreparedActionResultV2*",
+                    "description": [
+                        "Synchronous aligned POD belonging to the same original owner; no caller pointer survives."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original checked result. No renderer window, resource/config issuer, source acknowledgment or logical application is created."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_stage_output_plan_v2",
+            "since": "4.7",
+            "description": [
+                "Explicit camera-independent staged plan. Requires original retained source READ and Host association/subscription. All camera/current/previous/present fields must be zero; previous consumed history is not accepted by this initial stage. Pre-draw native prepare seals and prices static rows; genuine selected renderer invocation completes camera-only fields and executes original RECORD. Ordinary prepare, Acquire and freeze remain strict. Budget is immutable through the original RECORD and expires even with no draw. One staged output anchor per request; owner consumes results and acknowledges explicitly."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Original request input."
+                    ]
+                },
+                {
+                    "name": "plan",
+                    "type": "const GDExtensionProductionOutputPlanV1*",
+                    "description": [
+                        "Original plan input."
+                    ]
+                },
+                {
+                    "name": "budget",
+                    "type": "const GDExtensionProductionServiceBudgetV1*",
+                    "description": [
+                        "Original budget input."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original preparation status; success does not grant native acquisition or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_record_consume_v3",
+            "since": "4.7",
+            "description": [
+                "Exact original RECORD consume returning ABI3 service-bearing report. Does not consume/apply typed action results or ACK segment. Same original serial consumed once; V2 remains available for legacy callers."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous checked request."
+                    ]
+                },
+                {
+                    "name": "control_serial",
+                    "type": "uint64_t",
+                    "description": [
+                        "Synchronous checked control serial."
+                    ]
+                },
+                {
+                    "name": "out_report",
+                    "type": "GDExtensionProductionRecordReportV3*",
+                    "description": [
+                        "Synchronous checked out report."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original checked native result. Returned API calls and Core physical contexts do not issue original Runtime logical permissions."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_stage_camera_payload_v2",
+            "since": "4.7",
+            "description": [
+                "Stage exact original camera payload upload bindings before native static seal. No native effect or camera capture is created here."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Original request input."
+                    ]
+                },
+                {
+                    "name": "input",
+                    "type": "const GDExtensionProductionCameraPayloadV1*",
+                    "description": [
+                        "Explicit original revision-1 upload bindings."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original preparation status; success does not grant native acquisition or GPU completion."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_read_staged_output_input_v2",
+            "since": "4.7",
+            "description": [
+                "After exact original RECORD consume, read the actual same-capture completed original Acquire preparation including current/actual-previous camera and present sequence. No new identity or receipt; failure leaves output untouched."
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original native admission or contract result."
+                ]
+            },
+            "arguments": [
+                {
+                    "name": "p_request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Original typed request."
+                    ]
+                },
+                {
+                    "name": "p_action_ordinal",
+                    "type": "uint64_t",
+                    "description": [
+                        "Original typed action ordinal."
+                    ]
+                },
+                {
+                    "name": "r_input",
+                    "type": "GDExtensionProductionOutputPrepareV1*",
+                    "description": [
+                        "Original typed transform."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "device_session_production_prepare_native_batch_v2",
+            "since": "4.7",
+            "description": [
+                "Opt into finite same-original-control native subframes after static preparation and before RECORD. Original immutable stage pass/receipt budget pays each genuine physical frame; unchanged per-frame64/scene cap. No owner consume/application/ACK in renderer; actual results remain retained in paid original rows."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous aligned POD belonging to the same original owner; no caller pointer survives."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original checked result. No renderer window, resource/config issuer, source acknowledgment or logical application is created."
+                ]
+            }
+        },
+        {
+            "name": "device_session_production_native_batch_read_v2",
+            "since": "4.7",
+            "description": [
+                "Read the next exact original retained batch result only after original RECORD consume. Cursor is opaque custody reference, not authority. Sequential exact-once reads; no side effects or ACK."
+            ],
+            "arguments": [
+                {
+                    "name": "request",
+                    "type": "GDExtensionProductionRequestRefV1",
+                    "description": [
+                        "Synchronous checked request."
+                    ]
+                },
+                {
+                    "name": "control_serial",
+                    "type": "uint64_t",
+                    "description": [
+                        "Synchronous checked control serial."
+                    ]
+                },
+                {
+                    "name": "p_cursor",
+                    "type": "uint64_t",
+                    "description": [
+                        "Zero for first result; then exact previous next_cursor."
+                    ]
+                },
+                {
+                    "name": "out_report",
+                    "type": "GDExtensionProductionNativeBatchItemV1*",
+                    "description": [
+                        "Synchronous checked out report."
+                    ]
+                }
+            ],
+            "return_value": {
+                "type": "GDExtensionDeviceSessionResultV1",
+                "description": [
+                    "Original checked native result. Returned API calls and Core physical contexts do not issue original Runtime logical permissions."
+                ]
+            }
         }
     ]
 }
