@@ -84,6 +84,8 @@ public:
 		std::thread::id owner_thread;
 		Callback frozen_initializer = nullptr;
 		Callback frozen_terminator = nullptr;
+		GDExtensionDeviceExitPrepareFnV1 prepare_callback = nullptr;
+		GDExtensionDeviceExitPrepareFnV1 frozen_prepare_callback = nullptr;
 		SceneReadyCallback scene_ready_callback = nullptr;
 		SceneReadyCallback frozen_scene_ready_callback = nullptr;
 		enum class SceneReadyFlavor { None, V1Full, V2Declared };
@@ -156,6 +158,8 @@ public:
 
 		void register_initializer(Callback p_init) const;
 		void register_terminator(Callback p_init) const;
+		// Exact generated callback; registered in the same original guard bootstrap.
+		void register_exit_prepare_callback(GDExtensionDeviceExitPrepareFnV1) const;
 		void register_scene_ready_callback(SceneReadyCallback p_callback) const;
 		void register_scene_ready_callback_v2(SceneReadyCallbackV2, const GDExtensionSceneInstallRequirementsV2 &) const;
 		void require_main_rd_qualification() const;

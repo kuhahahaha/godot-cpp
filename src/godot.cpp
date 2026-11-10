@@ -224,6 +224,7 @@ bool frozen_configuration(const GDExtensionBinding::InitData &data) {
     if (!coherent_qualification_hold(data) || data.owner_thread != std::this_thread::get_id() ||
         data.init_callback != data.frozen_initializer ||
         data.terminate_callback != data.frozen_terminator ||
+        data.prepare_callback != data.frozen_prepare_callback ||
         data.scene_ready_callback != data.frozen_scene_ready_callback ||
         data.scene_ready_callback_v2 != data.frozen_scene_ready_callback_v2 ||
         data.scene_ready_flavor != data.frozen_scene_ready_flavor ||
@@ -373,6 +374,7 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
         ((flavor == InitData::SceneReadyFlavor::V1Full) != (p_init_data->scene_ready_callback != nullptr))) return false;
     if ((scene_ready || p_init_data->main_rd_qualification_required) &&
         (!guarded || !scene_ready || p_init_data->minimum_initialization_level > GDEXTENSION_INITIALIZATION_SCENE)) return false;
+    if (p_init_data->prepare_callback && !guarded) return false;
     if (guarded && (legacy_used || !p_init_data->guard_configured)) return false;
     if (scene_ready && !(p_init_data->guard_configuration.binding_cleanup_bitmap &
             (uint64_t(1) << GDEXTENSION_INITIALIZATION_SCENE))) return false;
@@ -386,7 +388,7 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
         !(p_init_data->guard_configuration.entry_classes & (uint64_t(1) << 1))) return false;
 #endif
     DeviceExitApi candidate_api;
-    if (guarded && !candidate_api.load(p_get_proc_address, scene_ready, p_init_data->main_rd_qualification_required, v2)) return false;
+    if (guarded && !candidate_api.load(p_get_proc_address, scene_ready, p_init_data->main_rd_qualification_required, v2, p_init_data->prepare_callback != nullptr)) return false;
     auto enroll = [&]() {
         r_initialization->initialize = initialize_level;
         r_initialization->deinitialize = deinitialize_level;
@@ -404,6 +406,7 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
             configuration.user_terminator = configuration.user_cleanup_bitmap ? guarded_terminate_user : nullptr;
             p_init_data->frozen_initializer = p_init_data->init_callback;
             p_init_data->frozen_terminator = p_init_data->terminate_callback;
+            p_init_data->frozen_prepare_callback = p_init_data->prepare_callback;
             p_init_data->frozen_scene_ready_callback = p_init_data->scene_ready_callback;
             p_init_data->frozen_scene_ready_callback_v2 = p_init_data->scene_ready_callback_v2;
             p_init_data->frozen_scene_ready_flavor = flavor;
@@ -413,6 +416,14 @@ GDExtensionBool GDExtensionBinding::init(GDExtensionInterfaceGetProcAddress p_ge
             p_init_data->frozen_main_loop_callbacks = p_init_data->main_loop_callbacks;
 #endif
             if (candidate_api.register_guard(p_library, &configuration, &p_init_data->guard) != 0) return false;
+            if (p_init_data->prepare_callback) {
+                const GDExtensionDeviceExitAbi abi{1, sizeof(GDExtensionDeviceExitAbi), 0};
+                // Failure returns through the original pending reservation. The
+                // native BootstrapScope observes failed entry and revokes this
+                // pending guard before any ordinary callback can enter it.
+                if (candidate_api.register_prepare(&abi, p_init_data->guard,
+                        p_init_data->prepare_callback, p_init_data) != 0) return false;
+            }
             p_init_data->exit_api = candidate_api;
             guarded_claimant = p_init_data;
         }
@@ -668,6 +679,12 @@ void GDExtensionBinding::InitObject::register_initializer(Callback p_init) const
 void GDExtensionBinding::InitObject::register_terminator(Callback p_terminate) const {
 	if (init_data->state != InitData::State::NEW) std::abort();
 	init_data->terminate_callback = p_terminate;
+}
+
+void GDExtensionBinding::InitObject::register_exit_prepare_callback(
+        GDExtensionDeviceExitPrepareFnV1 callback) const {
+    if (init_data->state != InitData::State::NEW) std::abort();
+    init_data->prepare_callback = callback;
 }
 
 void GDExtensionBinding::InitObject::register_scene_ready_callback(SceneReadyCallback callback) const {

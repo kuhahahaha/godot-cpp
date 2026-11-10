@@ -412,7 +412,7 @@ def generate_gdextension_interface_loader_header(data):
 
         for func in data[version]:
             name = func["name"]
-            fn = gdextension_interface_type_name(name)
+            fn = func.get("legacy_type_name", gdextension_interface_type_name(name))
 
             if "deprecated" in func:
                 (deprecated_major, deprecated_minor) = func["deprecated"]["since"].split(".")
@@ -464,7 +464,7 @@ def generate_gdextension_interface_loader_source(data):
 
         for func in data[version]:
             name = func["name"]
-            fn = gdextension_interface_type_name(name)
+            fn = func.get("legacy_type_name", gdextension_interface_type_name(name))
 
             if "deprecated" in func:
                 (deprecated_major, deprecated_minor) = func["deprecated"]["since"].split(".")
@@ -512,7 +512,7 @@ def generate_gdextension_interface_loader_source(data):
                 # Guarded-only entries are resolved atomically per InitData.
                 # Legacy loader lookup deliberately does not expose them.
                 continue
-            fn = gdextension_interface_type_name(name)
+            fn = func.get("legacy_type_name", gdextension_interface_type_name(name))
 
             if "deprecated" in func:
                 (deprecated_major, deprecated_minor) = func["deprecated"]["since"].split(".")

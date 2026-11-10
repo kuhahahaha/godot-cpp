@@ -26,6 +26,7 @@ struct DeviceExitApi {
 	}
 
 	GDExtensionInterfaceDeviceExitRegisterGuardV1 register_guard = nullptr;
+	GDExtensionInterfaceDeviceExitRegisterPrepareV1 register_prepare = nullptr;
 	GDExtensionInterfaceDeviceExitBorrowGuardedLibraryV1 borrow_guarded_library = nullptr;
 	GDExtensionInterfaceDeviceExitBorrowInitializeLevelV1 borrow_initialize_level = nullptr;
 	GDExtensionInterfaceDeviceExitBorrowDeinitLevelV1 borrow_deinit_level = nullptr;
@@ -71,11 +72,15 @@ struct DeviceExitApi {
 	GDExtensionInterfaceDeviceSessionQualificationNativeUnitRetireReleaseV1 qualification_native_unit_retire_release = nullptr;
 
 	// Missing any entry leaves the existing table unchanged.
-	bool load(GDExtensionInterfaceGetProcAddress lookup, bool require_scene_ready = false, bool require_qualification = false, bool require_scene_ready_v2 = false) {
+	bool load(GDExtensionInterfaceGetProcAddress lookup, bool require_scene_ready = false, bool require_qualification = false, bool require_scene_ready_v2 = false, bool require_prepare = false) {
 		if (!lookup || (require_scene_ready_v2 && !require_scene_ready)) return false;
 		DeviceExitApi candidate;
 		candidate.register_guard = (GDExtensionInterfaceDeviceExitRegisterGuardV1)lookup("device_exit_register_guard_v1");
 		if (!candidate.register_guard) return false;
+		if (require_prepare) {
+			candidate.register_prepare = (GDExtensionInterfaceDeviceExitRegisterPrepareV1)lookup("device_exit_register_prepare_v1");
+			if (!candidate.register_prepare) return false;
+		}
 		candidate.borrow_guarded_library = (GDExtensionInterfaceDeviceExitBorrowGuardedLibraryV1)lookup("device_exit_borrow_guarded_library_v1");
 		if (!candidate.borrow_guarded_library) return false;
 		candidate.borrow_initialize_level = (GDExtensionInterfaceDeviceExitBorrowInitializeLevelV1)lookup("device_exit_borrow_initialize_level_v1");
